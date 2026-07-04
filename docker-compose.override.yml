@@ -1,0 +1,11 @@
+# Wird von "docker compose" automatisch zusätzlich zu docker-compose.yml geladen –
+# NUR für lokales Testen (z.B. auf dem Mac), ohne nginx/HTTPS/certbot.
+# Für den echten Server-Deploy diese Datei löschen oder mit
+# "docker compose -f docker-compose.yml up -d" explizit ignorieren.
+
+services:
+  web:
+    environment:
+      DJANGO_SETTINGS_MODULE: config.settings.dev
+    ports:
+      - "8000:8000"
