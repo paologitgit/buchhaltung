@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Geschäftsjahr abschliessen{% endblock %}
+{% block content %}
+<h1>Geschäftsjahr abschliessen</h1>
+<p>Soll das Geschäftsjahr <strong>{{ fiscal_year }}</strong> wirklich abgeschlossen werden?</p>
+<p class="muted">Danach sind alle Buchungen dieses Zeitraums gesperrt und können nicht mehr verändert werden.</p>
+<form method="post">
+  {% csrf_token %}
+  <button type="submit" class="btn danger">Abschliessen</button>
+  <a class="btn secondary" href="{% url 'fiscal_year_list' %}">Abbrechen</a>
+</form>
+{% endblock %}

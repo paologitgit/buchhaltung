@@ -1,0 +1,282 @@
+:root {
+  --bg: #ffffff;
+  --fg: #111111;
+  --muted: #666666;
+  --border: #d9d9d9;
+  --surface: #f5f5f5;
+  --accent-error: #b00020;
+  --accent-ok: #1a7a3c;
+  --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #111111;
+    --fg: #f2f2f2;
+    --muted: #a0a0a0;
+    --border: #333333;
+    --surface: #1b1b1b;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--fg);
+  line-height: 1.45;
+}
+
+a {
+  color: var(--fg);
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+  padding: 0.9rem 1.5rem;
+}
+
+.topbar .brand {
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  font-size: 1.05rem;
+}
+
+.topbar nav {
+  display: flex;
+  gap: 1.25rem;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.topbar nav a {
+  text-decoration: none;
+  color: var(--fg);
+  font-size: 0.92rem;
+  border-bottom: 1px solid transparent;
+}
+
+.topbar nav a:hover {
+  border-bottom-color: var(--fg);
+}
+
+.topbar .user {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+main {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 4rem;
+}
+
+h1 {
+  font-size: 1.5rem;
+  margin-bottom: 1.25rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin-top: 2rem;
+}
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.25rem;
+  background: var(--surface);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.stat {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1rem;
+}
+
+.stat .value {
+  font-size: 1.8rem;
+  font-weight: 700;
+}
+
+.stat .label {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.stat.warn .value {
+  color: var(--accent-error);
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+}
+
+th, td {
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+th a {
+  text-decoration: none;
+  color: var(--fg);
+}
+
+tbody tr:hover {
+  background: var(--surface);
+}
+
+.badge {
+  display: inline-block;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  font-size: 0.75rem;
+}
+
+.badge.missing {
+  border-color: var(--accent-error);
+  color: var(--accent-error);
+}
+
+.badge.ok {
+  border-color: var(--accent-ok);
+  color: var(--accent-ok);
+}
+
+form {
+  margin-top: 1rem;
+}
+
+label {
+  display: block;
+  font-size: 0.85rem;
+  margin-bottom: 0.25rem;
+  margin-top: 0.9rem;
+}
+
+input[type="text"], input[type="password"], input[type="date"], input[type="file"],
+input[type="number"], select, textarea {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 0.92rem;
+}
+
+button, .btn {
+  display: inline-block;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+  border-radius: 3px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  text-decoration: none;
+  margin-top: 1rem;
+}
+
+button:hover, .btn:hover {
+  opacity: 0.85;
+}
+
+.btn.secondary {
+  background: transparent;
+  color: var(--fg);
+}
+
+.btn.danger {
+  background: var(--accent-error);
+  border-color: var(--accent-error);
+  color: #fff;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-bottom: 1.5rem;
+  border: 1px solid var(--border);
+  padding: 1rem;
+  border-radius: 4px;
+}
+
+.filters > div {
+  min-width: 140px;
+}
+
+.filters label {
+  margin-top: 0;
+}
+
+.messages {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 1.5rem;
+}
+
+.messages li {
+  padding: 0.6rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  margin-bottom: 0.5rem;
+}
+
+.messages li.error {
+  border-color: var(--accent-error);
+  color: var(--accent-error);
+}
+
+.messages li.success {
+  border-color: var(--accent-ok);
+  color: var(--accent-ok);
+}
+
+.helptext, .muted {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.errorlist {
+  color: var(--accent-error);
+  font-size: 0.85rem;
+  padding-left: 1rem;
+}
+
+.beleg-list {
+  list-style: none;
+  padding: 0;
+}
+
+.beleg-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border);
+}

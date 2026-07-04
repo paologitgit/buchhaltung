@@ -1,0 +1,40 @@
+{% load static %}<!DOCTYPE html>
+<html lang="de-CH">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Buchhaltung{% endblock %}</title>
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+  {% if user.is_authenticated %}
+  <header class="topbar">
+    <a class="brand" href="{% url 'dashboard' %}">Buchhaltung</a>
+    <nav>
+      <a href="{% url 'dashboard' %}">Übersicht</a>
+      <a href="{% url 'bewegung_list' %}">Bewegungen</a>
+      {% if user.has_write_access %}<a href="{% url 'bewegung_import' %}">CSV-Import</a>{% endif %}
+      <a href="{% url 'journal_list' %}">Journal</a>
+      <a href="{% url 'account_list' %}">Kontenplan</a>
+      <a href="{% url 'fiscal_year_list' %}">Geschäftsjahre</a>
+      <span class="user">{{ user.username }} ({{ user.get_role_display }})</span>
+      <a href="{% url 'password_change' %}">Passwort</a>
+      <form action="{% url 'logout' %}" method="post" style="display:inline; margin:0;">
+        {% csrf_token %}
+        <button type="submit" class="btn secondary" style="margin:0;padding:0.2rem 0.6rem;">Abmelden</button>
+      </form>
+    </nav>
+  </header>
+  {% endif %}
+  <main>
+    {% if messages %}
+    <ul class="messages">
+      {% for message in messages %}
+      <li class="{{ message.tags }}">{{ message }}</li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

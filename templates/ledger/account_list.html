@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Kontenplan – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Kontenplan</h1>
+<table>
+  <thead><tr><th>Nr.</th><th>Bezeichnung</th><th>Typ</th><th>Bankkonto</th><th>Aktiv</th></tr></thead>
+  <tbody>
+    {% for a in accounts %}
+    <tr>
+      <td>{{ a.code }}</td>
+      <td>{{ a.name }}</td>
+      <td>{{ a.get_account_type_display }}</td>
+      <td>{% if a.is_bank_account %}ja{% else %}–{% endif %}</td>
+      <td>{% if a.is_active %}ja{% else %}nein{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

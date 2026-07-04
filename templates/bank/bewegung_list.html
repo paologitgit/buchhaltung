@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% block title %}Bewegungen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Bewegungen</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="q">Suche</label>
+    <input type="text" name="q" id="q" value="{{ filters.q|default:'' }}">
+  </div>
+  <div>
+    <label for="status">Status</label>
+    <select name="status" id="status">
+      <option value="">Alle</option>
+      {% for value, label in status_choices %}
+      <option value="{{ value }}" {% if filters.status == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="bank_account">Bankkonto</label>
+    <select name="bank_account" id="bank_account">
+      <option value="">Alle</option>
+      {% for ba in bank_accounts %}
+      <option value="{{ ba.id }}" {% if filters.bank_account == ba.id|stringformat:"s" %}selected{% endif %}>{{ ba.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="von">Von</label>
+    <input type="date" name="von" id="von" value="{{ filters.von|default:'' }}">
+  </div>
+  <div>
+    <label for="bis">Bis</label>
+    <input type="date" name="bis" id="bis" value="{{ filters.bis|default:'' }}">
+  </div>
+  <div>
+    <label><input type="checkbox" name="fehlender_beleg" value="1" {% if filters.fehlender_beleg == "1" %}checked{% endif %}> nur fehlende Belege ({{ missing_count }})</label>
+  </div>
+  <div><button type="submit">Filtern</button></div>
+</form>
+
+<table>
+  <thead>
+    <tr>
+      <th><a href="{{ sort_links.booking_date }}">Datum{% if current_sort == "booking_date" %} ({{ current_order }}){% endif %}</a></th>
+      <th><a href="{{ sort_links.description }}">Beschreibung{% if current_sort == "description" %} ({{ current_order }}){% endif %}</a></th>
+      <th><a href="{{ sort_links.amount }}">Betrag{% if current_sort == "amount" %} ({{ current_order }}){% endif %}</a></th>
+      <th>Bankkonto</th>
+      <th><a href="{{ sort_links.status }}">Status{% if current_sort == "status" %} ({{ current_order }}){% endif %}</a></th>
+      <th>Beleg</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for b in bewegungen %}
+    <tr>
+      <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.booking_date }}</a></td>
+      <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
+      <td>{{ b.amount }} {{ b.currency }}</td>
+      <td>{{ b.bank_account.name }}</td>
+      <td>{{ b.get_status_display }}</td>
+      <td>
+        {% if b.has_beleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

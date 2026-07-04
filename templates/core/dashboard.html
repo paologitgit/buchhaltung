@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Übersicht – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Übersicht</h1>
+
+<div class="stat-grid">
+  <div class="stat {% if missing_beleg_count > 0 %}warn{% endif %}">
+    <div class="value">{{ missing_beleg_count }}</div>
+    <div class="label">Fehlende Belege</div>
+  </div>
+  <div class="stat">
+    <div class="value">{{ offen_count }}</div>
+    <div class="label">Offene Bewegungen</div>
+  </div>
+  <div class="stat">
+    <div class="value">{{ booked_count }}</div>
+    <div class="label">Verbuchte Bewegungen</div>
+  </div>
+  <div class="stat">
+    <div class="value">{% if current_fiscal_year %}{{ current_fiscal_year.start_date|date:"Y" }}{% else %}–{% endif %}</div>
+    <div class="label">Aktuelles Geschäftsjahr</div>
+  </div>
+</div>
+
+{% if missing_beleg_count > 0 %}
+<p><a class="btn danger" href="{% url 'bewegung_list' %}?fehlender_beleg=1">Bewegungen mit fehlendem Beleg ansehen</a></p>
+{% endif %}
+
+<h2>Letzte Buchungen</h2>
+<table>
+  <thead><tr><th>Datum</th><th>Beschreibung</th><th>Geschäftsjahr</th></tr></thead>
+  <tbody>
+    {% for entry in recent_entries %}
+    <tr><td>{{ entry.date }}</td><td>{{ entry.description }}</td><td>{{ entry.fiscal_year }}</td></tr>
+    {% empty %}
+    <tr><td colspan="3" class="muted">Noch keine Buchungen vorhanden.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

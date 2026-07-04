@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Bewegung – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Bewegung vom {{ bewegung.booking_date }}</h1>
+
+<div class="card">
+  <p><strong>Beschreibung:</strong> {{ bewegung.description }}</p>
+  <p><strong>Betrag:</strong> {{ bewegung.amount }} {{ bewegung.currency }}</p>
+  <p><strong>Bankkonto:</strong> {{ bewegung.bank_account.name }}</p>
+  <p><strong>Status:</strong> {{ bewegung.get_status_display }}</p>
+  {% if bewegung.journal_entry %}
+  <p><strong>Buchung:</strong> {{ bewegung.assigned_account }} – {{ bewegung.journal_entry.description }}
+    {% if bewegung.vat_code %}(MWST: {{ bewegung.vat_code }}){% endif %}</p>
+  {% endif %}
+</div>
+
+<h2>Belege</h2>
+<ul class="beleg-list">
+  {% for beleg in belege %}
+  <li>
+    <span><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></span>
+    {% if user.has_write_access %}
+    <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');" style="margin:0;">
+      {% csrf_token %}
+      <button type="submit" class="btn danger" style="margin:0;padding:0.2rem 0.6rem;">Löschen</button>
+    </form>
+    {% endif %}
+  </li>
+  {% empty %}
+  <li class="muted">Noch kein Beleg hinterlegt. <span class="badge missing">fehlt</span></li>
+  {% endfor %}
+</ul>
+
+{% if upload_form %}
+<form method="post" action="{% url 'beleg_upload' bewegung.pk %}" enctype="multipart/form-data">
+  {% csrf_token %}
+  {{ upload_form.as_p }}
+  <button type="submit">Beleg hochladen</button>
+</form>
+{% endif %}
+
+{% if can_book %}
+<h2>Verbuchen</h2>
+<form method="post">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="book">
+  {{ booking_form.as_p }}
+  <button type="submit">Buchen</button>
+</form>
+<form method="post" style="margin-top:0.5rem;">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="ignore">
+  <button type="submit" class="btn secondary">Als ignoriert markieren</button>
+</form>
+{% endif %}
+
+<p><a href="{% url 'bewegung_list' %}">&larr; zurück zur Liste</a></p>
+{% endblock %}

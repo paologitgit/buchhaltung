@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}CSV-Import – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Monatlichen Kontoauszug importieren (CSV)</h1>
+<p class="muted">Die Spalten-Zuordnung (Datum/Betrag/Text) wird einmalig pro Bankkonto im Admin-Bereich konfiguriert. Bereits importierte Bewegungen werden anhand von Datum, Betrag und Text automatisch erkannt und nicht doppelt angelegt.</p>
+<div class="card" style="max-width:480px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Importieren</button>
+  </form>
+</div>
+{% endblock %}

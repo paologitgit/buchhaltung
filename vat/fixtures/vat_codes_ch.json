@@ -1,0 +1,9 @@
+[
+  {"model": "vat.vatcode", "pk": 1, "fields": {"code": "V81", "label": "Vorsteuer Normalsatz 8.1%", "rate_percent": "8.10", "direction": "INPUT", "clearing_account": 4, "active": true}},
+  {"model": "vat.vatcode", "pk": 2, "fields": {"code": "V26", "label": "Vorsteuer reduzierter Satz 2.6%", "rate_percent": "2.60", "direction": "INPUT", "clearing_account": 4, "active": true}},
+  {"model": "vat.vatcode", "pk": 3, "fields": {"code": "V38", "label": "Vorsteuer Sondersatz Beherbergung 3.8%", "rate_percent": "3.80", "direction": "INPUT", "clearing_account": 4, "active": true}},
+  {"model": "vat.vatcode", "pk": 4, "fields": {"code": "U81", "label": "Umsatzsteuer Normalsatz 8.1%", "rate_percent": "8.10", "direction": "OUTPUT", "clearing_account": 7, "active": true}},
+  {"model": "vat.vatcode", "pk": 5, "fields": {"code": "U26", "label": "Umsatzsteuer reduzierter Satz 2.6%", "rate_percent": "2.60", "direction": "OUTPUT", "clearing_account": 7, "active": true}},
+  {"model": "vat.vatcode", "pk": 6, "fields": {"code": "U38", "label": "Umsatzsteuer Sondersatz Beherbergung 3.8%", "rate_percent": "3.80", "direction": "OUTPUT", "clearing_account": 7, "active": true}},
+  {"model": "vat.vatcode", "pk": 7, "fields": {"code": "OHNE", "label": "Keine MWST / von der Steuer ausgenommen", "rate_percent": "0.00", "direction": "NONE", "clearing_account": null, "active": true}}
+]

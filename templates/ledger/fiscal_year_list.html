@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}Geschäftsjahre – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Geschäftsjahre</h1>
+{% if user.has_write_access %}
+<p><a class="btn" href="{% url 'fiscal_year_create' %}">Neues Geschäftsjahr</a></p>
+{% endif %}
+<table>
+  <thead><tr><th>Zeitraum</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for fy in fiscal_years %}
+    <tr>
+      <td>{{ fy }}</td>
+      <td>{% if fy.is_closed %}abgeschlossen{% else %}offen{% endif %}</td>
+      <td>
+        {% if user.has_write_access and not fy.is_closed %}
+        <a href="{% url 'fiscal_year_close' fy.pk %}">abschliessen</a>
+        {% endif %}
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="muted">Noch kein Geschäftsjahr angelegt.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

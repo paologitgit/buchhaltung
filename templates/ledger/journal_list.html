@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block title %}Journal – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Journal</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr">
+      <option value="">Alle</option>
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if request.GET.geschaeftsjahr == fy.id|stringformat:"s" %}selected{% endif %}>{{ fy }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div><button type="submit">Filtern</button></div>
+</form>
+
+<p>
+  <a class="btn secondary" href="{% url 'journal_export' 'csv' %}?{{ request.GET.urlencode }}">Export CSV</a>
+  <a class="btn secondary" href="{% url 'journal_export' 'xlsx' %}?{{ request.GET.urlencode }}">Export Excel</a>
+</p>
+
+<table>
+  <thead><tr><th>Datum</th><th>Text</th><th>Konto</th><th>Soll</th><th>Haben</th><th>MWST</th></tr></thead>
+  <tbody>
+    {% for entry in entries %}
+      {% for line in entry.lines.all %}
+      <tr>
+        <td>{% if forloop.first %}{{ entry.date }}{% endif %}</td>
+        <td>{% if forloop.first %}{{ entry.description }}{% endif %}</td>
+        <td>{{ line.account.code }} {{ line.account.name }}</td>
+        <td>{{ line.debit_amount|default_if_none:"" }}</td>
+        <td>{{ line.credit_amount|default_if_none:"" }}</td>
+        <td>{{ line.vat_code.code|default:"" }}</td>
+      </tr>
+      {% endfor %}
+    {% empty %}
+    <tr><td colspan="6" class="muted">Noch keine Buchungen vorhanden.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}
