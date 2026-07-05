@@ -3,22 +3,34 @@ from django.db import models
 
 
 class BankAccount(models.Model):
-    name = models.CharField(max_length=100)
-    iban = models.CharField(max_length=34, blank=True)
-    currency = models.CharField(max_length=3, default="CHF")
+    name = models.CharField(max_length=100, verbose_name="Name")
+    iban = models.CharField(max_length=34, blank=True, verbose_name="IBAN")
+    currency = models.CharField(max_length=3, default="CHF", verbose_name="Währung")
     ledger_account = models.OneToOneField(
-        "ledger.Account", on_delete=models.PROTECT, related_name="bank_account"
+        "ledger.Account",
+        on_delete=models.PROTECT,
+        related_name="bank_account",
+        verbose_name="Buchhaltungskonto",
+        help_text="Das Konto aus dem Kontenplan, das dieses Bankkonto darstellt (z.B. 1020 – Bank).",
     )
 
     # Spalten-Zuordnung für den CSV-Import, damit spätere Uploads ohne erneute
     # Konfiguration funktionieren. Wird einmalig pro Bank/Format eingerichtet.
-    csv_delimiter = models.CharField(max_length=5, default=",")
-    csv_date_column = models.CharField(max_length=50, default="Datum")
-    csv_amount_column = models.CharField(max_length=50, default="Betrag")
-    csv_description_column = models.CharField(max_length=50, default="Beschreibung")
-    csv_date_format = models.CharField(max_length=20, default="%d.%m.%Y")
+    csv_delimiter = models.CharField(max_length=5, default=",", verbose_name="CSV-Trennzeichen")
+    csv_date_column = models.CharField(
+        max_length=50, default="Datum", verbose_name="CSV-Spalte Datum"
+    )
+    csv_amount_column = models.CharField(
+        max_length=50, default="Betrag", verbose_name="CSV-Spalte Betrag"
+    )
+    csv_description_column = models.CharField(
+        max_length=50, default="Beschreibung", verbose_name="CSV-Spalte Beschreibung"
+    )
+    csv_date_format = models.CharField(
+        max_length=20, default="%d.%m.%Y", verbose_name="CSV-Datumsformat"
+    )
 
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True, verbose_name="Aktiv")
 
     class Meta:
         ordering = ["name"]
