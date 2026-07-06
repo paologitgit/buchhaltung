@@ -1,6 +1,8 @@
 import io
 import os
+from pathlib import Path
 
+from django.conf import settings
 from PIL import Image, ImageOps
 
 FORMAT_BY_CONTENT_TYPE = {
@@ -8,6 +10,54 @@ FORMAT_BY_CONTENT_TYPE = {
     "image/png": "PNG",
     "image/webp": "WEBP",
 }
+
+THUMBNAIL_MAX_WIDTH = 400
+THUMBNAIL_DIR = Path(settings.MEDIA_ROOT) / "belege_thumbnails"
+
+
+def get_or_create_thumbnail_path(beleg):
+    """Liefert den Pfad zu einer PNG-Vorschau des Belegs und erzeugt sie bei
+    Bedarf (einmalig, danach aus dem Cache). Für PDFs wird die erste Seite
+    gerendert, für Bilder eine verkleinerte Kopie. Gibt None zurück, wenn für
+    den content_type keine Vorschau erzeugt werden kann."""
+    THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
+    thumb_path = THUMBNAIL_DIR / f"{beleg.pk}.png"
+    source_path = beleg.file.path
+
+    if thumb_path.exists() and thumb_path.stat().st_mtime >= os.path.getmtime(source_path):
+        return thumb_path
+
+    if beleg.content_type == "application/pdf":
+        _render_pdf_thumbnail(source_path, thumb_path)
+    elif beleg.content_type.startswith("image/"):
+        _render_image_thumbnail(source_path, thumb_path)
+    else:
+        return None
+    return thumb_path
+
+
+def _render_pdf_thumbnail(pdf_path, out_path):
+    import pypdfium2 as pdfium
+
+    pdf = pdfium.PdfDocument(pdf_path)
+    try:
+        page = pdf[0]
+        width_pt, height_pt = page.get_size()
+        scale = THUMBNAIL_MAX_WIDTH / width_pt
+        bitmap = page.render(scale=scale)
+        image = bitmap.to_pil().convert("RGB")
+        image.save(out_path, format="PNG")
+    finally:
+        pdf.close()
+
+
+def _render_image_thumbnail(image_path, out_path):
+    image = Image.open(image_path)
+    image = ImageOps.exif_transpose(image)
+    if image.mode not in ("RGB", "L"):
+        image = image.convert("RGB")
+    image.thumbnail((THUMBNAIL_MAX_WIDTH, THUMBNAIL_MAX_WIDTH * 3))
+    image.save(out_path, format="PNG")
 
 
 def rotate_image_file(beleg, degrees):

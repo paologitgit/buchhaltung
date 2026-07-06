@@ -19,13 +19,9 @@
   {% for beleg in belege %}
   <li class="beleg-item">
     <div class="beleg-preview">
-      {% if "image" in beleg.content_type %}
       <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
-        <img src="{% url 'beleg_download' beleg.pk %}" alt="{{ beleg.original_filename }}">
+        <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
       </a>
-      {% else %}
-      <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener" class="pdf-placeholder">PDF</a>
-      {% endif %}
     </div>
     <div class="beleg-meta">
       <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>

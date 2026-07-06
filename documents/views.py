@@ -8,7 +8,7 @@ from core.decorators import owner_required
 
 from .forms import BelegUploadForm
 from .models import Beleg
-from .services import rotate_image_file, rotate_pdf_file
+from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
 
 
 @login_required
@@ -44,6 +44,20 @@ def beleg_download(request, pk):
         file_handle, content_type=beleg.content_type or "application/octet-stream"
     )
     response["Content-Disposition"] = f'inline; filename="{beleg.original_filename}"'
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
+
+@login_required
+def beleg_thumbnail(request, pk):
+    beleg = get_object_or_404(Beleg, pk=pk)
+    try:
+        thumb_path = get_or_create_thumbnail_path(beleg)
+    except Exception:
+        raise Http404("Vorschau konnte nicht erzeugt werden.")
+    if thumb_path is None:
+        raise Http404("Keine Vorschau für diesen Dateityp verfügbar.")
+    response = FileResponse(open(thumb_path, "rb"), content_type="image/png")
     response["X-Content-Type-Options"] = "nosniff"
     return response
 
