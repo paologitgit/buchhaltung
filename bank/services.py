@@ -27,11 +27,39 @@ def _compute_hash(bank_account_id, booking_date, amount, description):
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
+def _decode_csv_bytes(raw):
+    """Viele Schweizer Bank-Exporte sind Windows-1252 (nicht UTF-8) kodiert."""
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return raw.decode("cp1252")
+
+
+def _find_header_line(lines, delimiter, required_column):
+    """Bank-Exporte enthalten oft Kopfzeilen (Kontonummer, Saldo, Adresse ...)
+    vor der eigentlichen Tabelle. Wir suchen die Zeile, die die konfigurierte
+    Datumsspalte tatsächlich als Spaltennamen enthält."""
+    for i, line in enumerate(lines):
+        fields = [f.strip().strip('"') for f in line.split(delimiter)]
+        if required_column in fields:
+            return i
+    return None
+
+
 @transaction.atomic
 def import_csv(bank_account, uploaded_file, user):
     raw = uploaded_file.read()
-    text = raw.decode("utf-8-sig", errors="replace")
-    reader = csv.DictReader(io.StringIO(text), delimiter=bank_account.csv_delimiter)
+    text = _decode_csv_bytes(raw)
+
+    lines = text.splitlines()
+    header_index = _find_header_line(lines, bank_account.csv_delimiter, bank_account.csv_date_column)
+    if header_index is None:
+        raise ValidationError(
+            f"Spalte '{bank_account.csv_date_column}' wurde in der CSV-Datei nicht gefunden. "
+            "Bitte Spalten-Zuordnung und Trennzeichen des Bankkontos prüfen."
+        )
+    csv_text = "\n".join(lines[header_index:])
+    reader = csv.DictReader(io.StringIO(csv_text), delimiter=bank_account.csv_delimiter)
 
     batch = ImportBatch.objects.create(
         bank_account=bank_account,
