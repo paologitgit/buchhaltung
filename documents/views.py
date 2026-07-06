@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import FileResponse, Http404
@@ -9,6 +11,8 @@ from core.decorators import owner_required
 from .forms import BelegUploadForm
 from .models import Beleg
 from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
+
+logger = logging.getLogger(__name__)
 
 
 @login_required
@@ -54,6 +58,7 @@ def beleg_thumbnail(request, pk):
     try:
         thumb_path = get_or_create_thumbnail_path(beleg)
     except Exception:
+        logger.exception("Vorschau für Beleg %s (content_type=%s) fehlgeschlagen", pk, beleg.content_type)
         raise Http404("Vorschau konnte nicht erzeugt werden.")
     if thumb_path is None:
         raise Http404("Keine Vorschau für diesen Dateityp verfügbar.")
