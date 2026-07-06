@@ -72,7 +72,9 @@
       <td>{{ b.bank_account.name }}</td>
       <td>{{ b.get_status_display }}</td>
       <td>
-        {% if b.has_quittung %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+        {% if not b.quittung_erforderlich %}<span class="badge">nicht nötig</span>
+        {% elif b.has_quittung %}<span class="badge ok">vorhanden</span>
+        {% else %}<span class="badge missing">fehlt</span>{% endif %}
       </td>
       <td>
         {% if b.has_bankbeleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}

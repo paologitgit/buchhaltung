@@ -46,7 +46,7 @@ def bewegung_list(request):
         qs = qs.filter(status=status)
 
     if request.GET.get("fehlende_quittung") == "1":
-        qs = qs.filter(has_quittung=False)
+        qs = qs.filter(quittung_erforderlich=True, has_quittung=False)
     if request.GET.get("fehlender_bankbeleg") == "1":
         qs = qs.filter(has_bankbeleg=False)
 
@@ -72,7 +72,9 @@ def bewegung_list(request):
 
     active_bewegungen = Bewegung.objects.exclude(status=Bewegung.Status.IGNORED)
     missing_quittung_count = (
-        active_bewegungen.annotate(has_quittung=quittung_exists).filter(has_quittung=False).count()
+        active_bewegungen.annotate(has_quittung=quittung_exists)
+        .filter(quittung_erforderlich=True, has_quittung=False)
+        .count()
     )
     missing_bankbeleg_count = (
         active_bewegungen.annotate(has_bankbeleg=bankbeleg_exists).filter(has_bankbeleg=False).count()
@@ -131,6 +133,14 @@ def bewegung_detail(request, pk):
             bewegung.status = Bewegung.Status.IGNORED
             bewegung.save(update_fields=["status"])
             messages.info(request, "Bewegung als ignoriert markiert.")
+            return redirect("bewegung_detail", pk=pk)
+        elif action == "toggle_quittung_required":
+            bewegung.quittung_erforderlich = not bewegung.quittung_erforderlich
+            bewegung.save(update_fields=["quittung_erforderlich"])
+            if bewegung.quittung_erforderlich:
+                messages.info(request, "Quittung ist für diese Bewegung wieder erforderlich.")
+            else:
+                messages.info(request, "Für diese Bewegung wird keine Quittung mehr verlangt.")
             return redirect("bewegung_detail", pk=pk)
 
     context = {

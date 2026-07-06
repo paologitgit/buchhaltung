@@ -16,9 +16,21 @@
 
 <h2>Belege</h2>
 <p>
-  Quittung: {% if has_quittung %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+  Quittung:
+  {% if not bewegung.quittung_erforderlich %}<span class="badge">nicht nötig</span>
+  {% elif has_quittung %}<span class="badge ok">vorhanden</span>
+  {% else %}<span class="badge missing">fehlt</span>{% endif %}
   &nbsp; Bankbeleg: {% if has_bankbeleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
 </p>
+{% if user.has_write_access %}
+<form method="post" style="margin-bottom:1rem;">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="toggle_quittung_required">
+  <button type="submit" class="btn secondary">
+    {% if bewegung.quittung_erforderlich %}Als "keine Quittung nötig" markieren{% else %}Quittung wieder als nötig markieren{% endif %}
+  </button>
+</form>
+{% endif %}
 <ul class="beleg-list">
   {% for beleg in belege %}
   <li class="beleg-item">

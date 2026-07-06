@@ -20,7 +20,9 @@ def dashboard(request):
 
     context = {
         "offen_count": bewegungen.filter(status=Bewegung.Status.OFFEN).count(),
-        "missing_quittung_count": active_bewegungen.filter(has_quittung=False).count(),
+        "missing_quittung_count": active_bewegungen.filter(
+            quittung_erforderlich=True, has_quittung=False
+        ).count(),
         "missing_bankbeleg_count": active_bewegungen.filter(has_bankbeleg=False).count(),
         "posteingang_count": Beleg.objects.filter(bewegung__isnull=True).count(),
         "booked_count": bewegungen.filter(status=Bewegung.Status.BOOKED).count(),

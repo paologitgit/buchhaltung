@@ -83,6 +83,11 @@ class Bewegung(models.Model):
     dedup_hash = models.CharField(max_length=64, unique=True)
 
     status = models.CharField(max_length=10, choices=Status.choices, default=Status.OFFEN)
+    quittung_erforderlich = models.BooleanField(
+        default=True,
+        verbose_name="Quittung erforderlich",
+        help_text="Abschalten, wenn für diese Bewegung keine Quittung nötig/verfügbar ist (z.B. Bankgebühren).",
+    )
     assigned_account = models.ForeignKey(
         "ledger.Account", on_delete=models.PROTECT, null=True, blank=True, related_name="bewegungen"
     )
