@@ -8,6 +8,7 @@ from core.decorators import owner_required
 
 from .forms import BelegUploadForm
 from .models import Beleg
+from .services import rotate_image_file, rotate_pdf_file
 
 
 @login_required
@@ -45,6 +46,29 @@ def beleg_download(request, pk):
     response["Content-Disposition"] = f'inline; filename="{beleg.original_filename}"'
     response["X-Content-Type-Options"] = "nosniff"
     return response
+
+
+@login_required
+@owner_required
+def beleg_rotate(request, pk):
+    beleg = get_object_or_404(Beleg, pk=pk)
+    if request.method == "POST":
+        try:
+            degrees = float(request.POST.get("degrees", "0"))
+        except ValueError:
+            degrees = 0
+        if degrees:
+            try:
+                if beleg.content_type == "application/pdf":
+                    if degrees % 90 != 0:
+                        raise ValueError("Bei PDF-Belegen sind nur 90°-Schritte möglich.")
+                    rotate_pdf_file(beleg, int(degrees / 90))
+                else:
+                    rotate_image_file(beleg, degrees)
+                messages.success(request, "Beleg wurde gedreht.")
+            except Exception as exc:
+                messages.error(request, f"Beleg konnte nicht gedreht werden: {exc}")
+    return redirect("bewegung_detail", pk=beleg.bewegung_id)
 
 
 @login_required

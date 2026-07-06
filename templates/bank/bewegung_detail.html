@@ -17,14 +17,49 @@
 <h2>Belege</h2>
 <ul class="beleg-list">
   {% for beleg in belege %}
-  <li>
-    <span><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></span>
-    {% if user.has_write_access %}
-    <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');" style="margin:0;">
-      {% csrf_token %}
-      <button type="submit" class="btn danger" style="margin:0;padding:0.2rem 0.6rem;">Löschen</button>
-    </form>
-    {% endif %}
+  <li class="beleg-item">
+    <div class="beleg-preview">
+      {% if "image" in beleg.content_type %}
+      <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
+        <img src="{% url 'beleg_download' beleg.pk %}" alt="{{ beleg.original_filename }}">
+      </a>
+      {% else %}
+      <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener" class="pdf-placeholder">PDF</a>
+      {% endif %}
+    </div>
+    <div class="beleg-meta">
+      <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
+      {% if user.has_write_access %}
+      <div class="beleg-actions">
+        <form method="post" action="{% url 'beleg_rotate' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="degrees" value="-90">
+          <button type="submit" class="btn secondary">Links drehen</button>
+        </form>
+        <form method="post" action="{% url 'beleg_rotate' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="degrees" value="90">
+          <button type="submit" class="btn secondary">Rechts drehen</button>
+        </form>
+        <form method="post" action="{% url 'beleg_rotate' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="degrees" value="180">
+          <button type="submit" class="btn secondary">180°</button>
+        </form>
+        {% if "image" in beleg.content_type %}
+        <form method="post" action="{% url 'beleg_rotate' beleg.pk %}" class="fine-rotate">
+          {% csrf_token %}
+          <input type="number" name="degrees" step="0.5" min="-45" max="45" value="0" placeholder="Grad">
+          <button type="submit" class="btn secondary">Begradigen</button>
+        </form>
+        {% endif %}
+        <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
+          {% csrf_token %}
+          <button type="submit" class="btn danger">Löschen</button>
+        </form>
+      </div>
+      {% endif %}
+    </div>
   </li>
   {% empty %}
   <li class="muted">Noch kein Beleg hinterlegt. <span class="badge missing">fehlt</span></li>
