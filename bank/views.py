@@ -129,6 +129,46 @@ def bewegung_detail(request, pk):
 
 @login_required
 @owner_required
+def bewegung_delete(request, pk):
+    bewegung = get_object_or_404(Bewegung, pk=pk)
+    if request.method == "POST":
+        if bewegung.status == Bewegung.Status.BOOKED:
+            messages.error(
+                request,
+                "Verbuchte Bewegungen können hier nicht gelöscht werden "
+                "(die zugehörige Buchung müsste sonst zusätzlich entfernt werden).",
+            )
+            return redirect("bewegung_detail", pk=pk)
+        bewegung.delete()
+        messages.success(request, "Bewegung gelöscht.")
+        return redirect("bewegung_list")
+    return redirect("bewegung_detail", pk=pk)
+
+
+@login_required
+@owner_required
+def bewegung_bulk_delete(request):
+    if request.method == "POST":
+        ids = request.POST.getlist("selected")
+        qs = Bewegung.objects.filter(pk__in=ids)
+        skipped = qs.filter(status=Bewegung.Status.BOOKED).count()
+        deletable = qs.exclude(status=Bewegung.Status.BOOKED)
+        deleted_count = deletable.count()
+        deletable.delete()
+        if deleted_count:
+            messages.success(request, f"{deleted_count} Bewegung(en) gelöscht.")
+        if skipped:
+            messages.error(
+                request,
+                f"{skipped} bereits verbuchte Bewegung(en) wurden übersprungen (nicht gelöscht).",
+            )
+        if not deleted_count and not skipped:
+            messages.info(request, "Keine Bewegung ausgewählt.")
+    return redirect("bewegung_list")
+
+
+@login_required
+@owner_required
 def import_view(request):
     if request.method == "POST":
         form = CSVImportForm(request.POST, request.FILES)

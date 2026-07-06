@@ -40,9 +40,14 @@
   <div><button type="submit">Filtern</button></div>
 </form>
 
+{% if user.has_write_access %}
+<form method="post" action="{% url 'bewegung_bulk_delete' %}" id="bulk-delete-form" onsubmit="return confirm('Ausgewählte Bewegungen wirklich löschen? Bereits verbuchte Bewegungen werden dabei übersprungen.');">
+{% csrf_token %}
+{% endif %}
 <table>
   <thead>
     <tr>
+      {% if user.has_write_access %}<th><input type="checkbox" onclick="document.querySelectorAll('.bewegung-checkbox').forEach(c => c.checked = this.checked);"></th>{% endif %}
       <th><a href="{{ sort_links.booking_date }}">Datum{% if current_sort == "booking_date" %} ({{ current_order }}){% endif %}</a></th>
       <th><a href="{{ sort_links.description }}">Beschreibung{% if current_sort == "description" %} ({{ current_order }}){% endif %}</a></th>
       <th><a href="{{ sort_links.amount }}">Betrag{% if current_sort == "amount" %} ({{ current_order }}){% endif %}</a></th>
@@ -54,6 +59,9 @@
   <tbody>
     {% for b in bewegungen %}
     <tr>
+      {% if user.has_write_access %}
+      <td>{% if b.status != "BOOKED" %}<input type="checkbox" name="selected" value="{{ b.pk }}" class="bewegung-checkbox" form="bulk-delete-form">{% endif %}</td>
+      {% endif %}
       <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.booking_date }}</a></td>
       <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
       <td>{{ b.amount }} {{ b.currency }}</td>
@@ -64,8 +72,12 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="6" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
+    <tr><td colspan="7" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+{% if user.has_write_access %}
+<button type="submit" class="btn danger">Ausgewählte löschen</button>
+</form>
+{% endif %}
 {% endblock %}

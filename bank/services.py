@@ -1,13 +1,16 @@
 import csv
 import hashlib
 import io
+import re
 from datetime import datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from .models import Bewegung, ImportBatch
+
+_WHITESPACE_RE = re.compile(r"\s+")
 
 
 def _parse_amount(raw):
@@ -23,7 +26,12 @@ def _parse_amount(raw):
 
 
 def _compute_hash(bank_account_id, booking_date, amount, description):
-    payload = f"{bank_account_id}|{booking_date.isoformat()}|{amount}|{description.strip().lower()}"
+    # Betrag und Text werden normalisiert (feste Nachkommastellen, zusammen-
+    # gefasste Leerzeichen), damit kleine Formatierungsunterschiede zwischen
+    # zwei CSV-Exporten (z.B. "-15" statt "-15.00") nicht zu Dubletten führen.
+    normalized_amount = amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    normalized_description = _WHITESPACE_RE.sub(" ", description.strip()).lower()
+    payload = f"{bank_account_id}|{booking_date.isoformat()}|{normalized_amount}|{normalized_description}"
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

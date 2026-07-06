@@ -89,5 +89,12 @@
 </form>
 {% endif %}
 
+{% if user.has_write_access and bewegung.status != "BOOKED" %}
+<form method="post" action="{% url 'bewegung_delete' bewegung.pk %}" onsubmit="return confirm('Diese Bewegung wirklich löschen?');" style="margin-top:1.5rem;">
+  {% csrf_token %}
+  <button type="submit" class="btn danger">Bewegung löschen</button>
+</form>
+{% endif %}
+
 <p><a href="{% url 'bewegung_list' %}">&larr; zurück zur Liste</a></p>
 {% endblock %}
