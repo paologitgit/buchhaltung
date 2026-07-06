@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+{% block title %}Posteingang – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Beleg-Posteingang</h1>
+<p class="muted">Hier landen Belege, die unterwegs fotografiert wurden, bevor sie einer Bewegung zugewiesen sind.</p>
+
+<p><a class="btn" href="{% url 'posteingang_upload' %}">Beleg fotografieren / hochladen</a></p>
+
+<ul class="beleg-list">
+  {% for beleg in belege %}
+  <li class="beleg-item">
+    <div class="beleg-preview">
+      <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
+        <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
+      </a>
+    </div>
+    <div class="beleg-meta">
+      <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
+      <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
+      {% if beleg.note %}<div class="muted">{{ beleg.note }}</div>{% endif %}
+      <div class="beleg-actions">
+        <a class="btn" href="{% url 'beleg_assign' beleg.pk %}">Bewegung zuweisen</a>
+        <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
+          {% csrf_token %}
+          <button type="submit" class="btn danger">Löschen</button>
+        </form>
+      </div>
+    </div>
+  </li>
+  {% empty %}
+  <li class="muted">Posteingang ist leer.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

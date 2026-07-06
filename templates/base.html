@@ -14,6 +14,7 @@
       <a href="{% url 'dashboard' %}">Übersicht</a>
       <a href="{% url 'bewegung_list' %}">Bewegungen</a>
       {% if user.has_write_access %}<a href="{% url 'bewegung_import' %}">CSV-Import</a>{% endif %}
+      {% if user.has_write_access %}<a href="{% url 'posteingang_list' %}">Posteingang</a>{% endif %}
       <a href="{% url 'journal_list' %}">Journal</a>
       <a href="{% url 'account_list' %}">Kontenplan</a>
       <a href="{% url 'fiscal_year_list' %}">Geschäftsjahre</a>

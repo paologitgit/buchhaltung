@@ -8,8 +8,8 @@ from .models import Beleg
 class BelegUploadForm(forms.ModelForm):
     class Meta:
         model = Beleg
-        fields = ["file", "note"]
-        labels = {"file": "Beleg-Datei (PDF/Bild)", "note": "Notiz"}
+        fields = ["file", "document_type", "note"]
+        labels = {"file": "Beleg-Datei (PDF/Bild)", "document_type": "Beleg-Typ", "note": "Notiz"}
 
     def clean_file(self):
         f = self.cleaned_data["file"]

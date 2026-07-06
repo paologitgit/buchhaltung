@@ -4,9 +4,13 @@
 <h1>Übersicht</h1>
 
 <div class="stat-grid">
-  <div class="stat {% if missing_beleg_count > 0 %}warn{% endif %}">
-    <div class="value">{{ missing_beleg_count }}</div>
-    <div class="label">Fehlende Belege</div>
+  <div class="stat {% if missing_quittung_count > 0 %}warn{% endif %}">
+    <div class="value">{{ missing_quittung_count }}</div>
+    <div class="label">Fehlende Quittungen</div>
+  </div>
+  <div class="stat {% if missing_bankbeleg_count > 0 %}warn{% endif %}">
+    <div class="value">{{ missing_bankbeleg_count }}</div>
+    <div class="label">Fehlende Bankbelege</div>
   </div>
   <div class="stat">
     <div class="value">{{ offen_count }}</div>
@@ -16,14 +20,24 @@
     <div class="value">{{ booked_count }}</div>
     <div class="label">Verbuchte Bewegungen</div>
   </div>
+  <div class="stat {% if posteingang_count > 0 %}warn{% endif %}">
+    <div class="value">{{ posteingang_count }}</div>
+    <div class="label">Belege im Posteingang</div>
+  </div>
   <div class="stat">
     <div class="value">{% if current_fiscal_year %}{{ current_fiscal_year.start_date|date:"Y" }}{% else %}–{% endif %}</div>
     <div class="label">Aktuelles Geschäftsjahr</div>
   </div>
 </div>
 
-{% if missing_beleg_count > 0 %}
-<p><a class="btn danger" href="{% url 'bewegung_list' %}?fehlender_beleg=1">Bewegungen mit fehlendem Beleg ansehen</a></p>
+{% if missing_quittung_count > 0 %}
+<p><a class="btn danger" href="{% url 'bewegung_list' %}?fehlende_quittung=1">Bewegungen mit fehlender Quittung ansehen</a></p>
+{% endif %}
+{% if missing_bankbeleg_count > 0 %}
+<p><a class="btn danger" href="{% url 'bewegung_list' %}?fehlender_bankbeleg=1">Bewegungen mit fehlendem Bankbeleg ansehen</a></p>
+{% endif %}
+{% if posteingang_count > 0 %}
+<p><a class="btn" href="{% url 'posteingang_list' %}">{{ posteingang_count }} Beleg(e) im Posteingang zuweisen</a></p>
 {% endif %}
 
 <h2>Letzte Buchungen</h2>

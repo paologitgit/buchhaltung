@@ -15,6 +15,10 @@
 </div>
 
 <h2>Belege</h2>
+<p>
+  Quittung: {% if has_quittung %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+  &nbsp; Bankbeleg: {% if has_bankbeleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+</p>
 <ul class="beleg-list">
   {% for beleg in belege %}
   <li class="beleg-item">
@@ -24,6 +28,7 @@
       </a>
     </div>
     <div class="beleg-meta">
+      <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
       <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
       {% if user.has_write_access %}
       <div class="beleg-actions">
@@ -58,7 +63,7 @@
     </div>
   </li>
   {% empty %}
-  <li class="muted">Noch kein Beleg hinterlegt. <span class="badge missing">fehlt</span></li>
+  <li class="muted">Noch kein Beleg hinterlegt.</li>
   {% endfor %}
 </ul>
 

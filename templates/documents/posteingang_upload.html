@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Beleg hochladen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Beleg fotografieren / hochladen</h1>
+<p class="muted">Auf dem Handy öffnet der Dateiauswahl-Dialog automatisch auch die Kamera. Der Beleg landet im Posteingang und kann später einer Bewegung zugewiesen werden.</p>
+<div class="card" style="max-width:480px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Hochladen</button>
+  </form>
+</div>
+<p><a href="{% url 'posteingang_list' %}">&larr; zurück zum Posteingang</a></p>
+{% endblock %}

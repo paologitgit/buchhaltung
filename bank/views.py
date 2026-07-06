@@ -29,19 +29,26 @@ def _build_sort_url(request, field, current_sort, current_order):
     return f"?{params.urlencode()}"
 
 
+def _beleg_exists(document_type):
+    return Exists(Beleg.objects.filter(bewegung_id=OuterRef("pk"), document_type=document_type))
+
+
 @login_required
 def bewegung_list(request):
-    beleg_exists = Exists(Beleg.objects.filter(bewegung_id=OuterRef("pk")))
+    bankbeleg_exists = _beleg_exists(Beleg.DocumentType.BANKBELEG)
+    quittung_exists = _beleg_exists(Beleg.DocumentType.QUITTUNG)
     qs = Bewegung.objects.select_related("bank_account", "assigned_account", "vat_code").annotate(
-        has_beleg=beleg_exists
+        has_bankbeleg=bankbeleg_exists, has_quittung=quittung_exists
     )
 
     status = request.GET.get("status")
     if status:
         qs = qs.filter(status=status)
 
-    if request.GET.get("fehlender_beleg") == "1":
-        qs = qs.filter(has_beleg=False)
+    if request.GET.get("fehlende_quittung") == "1":
+        qs = qs.filter(has_quittung=False)
+    if request.GET.get("fehlender_bankbeleg") == "1":
+        qs = qs.filter(has_bankbeleg=False)
 
     bank_account_id = request.GET.get("bank_account")
     if bank_account_id:
@@ -63,7 +70,13 @@ def bewegung_list(request):
     sort_field = ALLOWED_SORT_FIELDS.get(sort, "booking_date")
     qs = qs.order_by(sort_field if order == "asc" else f"-{sort_field}", "-id")
 
-    missing_count = Bewegung.objects.annotate(has_beleg=beleg_exists).filter(has_beleg=False).count()
+    active_bewegungen = Bewegung.objects.exclude(status=Bewegung.Status.IGNORED)
+    missing_quittung_count = (
+        active_bewegungen.annotate(has_quittung=quittung_exists).filter(has_quittung=False).count()
+    )
+    missing_bankbeleg_count = (
+        active_bewegungen.annotate(has_bankbeleg=bankbeleg_exists).filter(has_bankbeleg=False).count()
+    )
 
     sort_links = {
         field: _build_sort_url(request, field, sort, order) for field in ALLOWED_SORT_FIELDS
@@ -73,7 +86,8 @@ def bewegung_list(request):
         "bewegungen": qs[:500],
         "bank_accounts": BankAccount.objects.filter(is_active=True),
         "status_choices": Bewegung.Status.choices,
-        "missing_count": missing_count,
+        "missing_quittung_count": missing_quittung_count,
+        "missing_bankbeleg_count": missing_bankbeleg_count,
         "current_sort": sort,
         "current_order": order,
         "sort_links": sort_links,
@@ -89,6 +103,8 @@ def bewegung_detail(request, pk):
         pk=pk,
     )
     belege = bewegung.belege.all()
+    has_quittung = any(b.document_type == Beleg.DocumentType.QUITTUNG for b in belege)
+    has_bankbeleg = any(b.document_type == Beleg.DocumentType.BANKBELEG for b in belege)
     can_book = request.user.has_write_access() and bewegung.status == Bewegung.Status.OFFEN
 
     booking_form = BewegungBookingForm() if can_book else None
@@ -120,6 +136,8 @@ def bewegung_detail(request, pk):
     context = {
         "bewegung": bewegung,
         "belege": belege,
+        "has_quittung": has_quittung,
+        "has_bankbeleg": has_bankbeleg,
         "booking_form": booking_form,
         "upload_form": upload_form,
         "can_book": can_book,
