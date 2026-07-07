@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("konten/", views.account_list, name="account_list"),
+    path("auswertung/", views.auswertung, name="auswertung"),
     path("journal/", views.journal_list, name="journal_list"),
     path("journal/export/<str:fmt>/", views.journal_export, name="journal_export"),
     path("geschaeftsjahre/", views.fiscal_year_list, name="fiscal_year_list"),

@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% block title %}Auswertung – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Auswertung</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr" onchange="this.form.submit()">
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if selected_fiscal_year.id == fy.id %}selected{% endif %}>{{ fy }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="value">{{ total_income|floatformat:0 }}</div>
+    <div class="label">Einnahmen (CHF, netto)</div>
+  </div>
+  <div class="stat">
+    <div class="value">{{ total_expense|floatformat:0 }}</div>
+    <div class="label">Ausgaben (CHF, netto)</div>
+  </div>
+</div>
+
+{% if chart %}
+<h2>Einnahmen und Ausgaben pro Monat</h2>
+<div class="chart-legend">
+  <span class="legend-item"><span class="legend-swatch swatch-income"></span>Einnahmen</span>
+  <span class="legend-item"><span class="legend-swatch swatch-expense"></span>Ausgaben</span>
+</div>
+<div class="chart-scroll">
+  <svg viewBox="0 0 {{ chart.width }} {{ chart.height }}" width="{{ chart.width }}" height="{{ chart.height }}" role="img" aria-label="Einnahmen und Ausgaben pro Monat">
+    {% for line in chart.gridlines %}
+    <line x1="{{ chart.margin_left }}" y1="{{ line.y }}" x2="{{ chart.width }}" y2="{{ line.y }}" class="chart-grid"></line>
+    <text x="{{ chart.margin_left|add:'-8' }}" y="{{ line.y|add:'4' }}" text-anchor="end" class="chart-axis-text">{{ line.label }}</text>
+    {% endfor %}
+    <line x1="{{ chart.margin_left }}" y1="{{ chart.baseline }}" x2="{{ chart.width }}" y2="{{ chart.baseline }}" class="chart-axis"></line>
+    {% for bar in chart.bars %}
+    {% if bar.income_path %}<path d="{{ bar.income_path }}" class="bar-income"><title>Einnahmen {{ bar.label }}: CHF {{ bar.income }}</title></path>{% endif %}
+    {% if bar.expense_path %}<path d="{{ bar.expense_path }}" class="bar-expense"><title>Ausgaben {{ bar.label }}: CHF {{ bar.expense }}</title></path>{% endif %}
+    <text x="{{ bar.label_x }}" y="{{ chart.baseline|add:'16' }}" text-anchor="middle" class="chart-axis-text">{{ bar.label }}</text>
+    {% endfor %}
+  </svg>
+</div>
+
+<h2>Werte pro Monat</h2>
+<div class="chart-scroll">
+<table>
+  <thead><tr><th>Monat</th><th>Einnahmen</th><th>Ausgaben</th><th>Differenz</th></tr></thead>
+  <tbody>
+    {% for bar in chart.bars %}
+    <tr>
+      <td>{{ bar.label }}</td>
+      <td>{{ bar.income }}</td>
+      <td>{{ bar.expense }}</td>
+      <td>{{ bar.difference }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+{% else %}
+<p class="muted">Noch keine Buchungen für dieses Geschäftsjahr vorhanden.</p>
+{% endif %}
+
+{% if top_accounts %}
+<h2>Grösste Ausgabenkonten</h2>
+<div class="rank-list">
+  {% for account in top_accounts %}
+  <div class="rank-row">
+    <div class="rank-label">{{ account.code }} {{ account.name }}</div>
+    <div class="rank-bar-track"><div class="rank-bar-fill" style="width: {{ account.percent }}%;"></div></div>
+    <div class="rank-value">CHF {{ account.amount|floatformat:0 }}</div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+{% endblock %}

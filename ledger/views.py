@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponseBadRequest
@@ -5,6 +7,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 
 from core.decorators import owner_required
 
+from .analytics import build_income_expense_chart, monthly_income_expense, top_expense_accounts
 from .export import export_journal_csv, export_journal_xlsx
 from .forms import FiscalYearForm
 from .models import Account, FiscalYear, JournalEntry
@@ -14,6 +17,35 @@ from .models import Account, FiscalYear, JournalEntry
 def account_list(request):
     accounts = Account.objects.all()
     return render(request, "ledger/account_list.html", {"accounts": accounts})
+
+
+@login_required
+def auswertung(request):
+    fiscal_years = FiscalYear.objects.all()
+    fiscal_year_id = request.GET.get("geschaeftsjahr")
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = fiscal_years.filter(pk=fiscal_year_id).first()
+    elif fiscal_years.exists():
+        fiscal_year = fiscal_years.filter(is_closed=False).order_by("-start_date").first() or fiscal_years.first()
+
+    monthly_data = monthly_income_expense(fiscal_year)
+    chart = build_income_expense_chart(monthly_data) if monthly_data else None
+    top_accounts = top_expense_accounts(fiscal_year)
+
+    total_income = sum((v["income"] for _, v in monthly_data), Decimal("0.00"))
+    total_expense = sum((v["expense"] for _, v in monthly_data), Decimal("0.00"))
+
+    context = {
+        "fiscal_years": fiscal_years,
+        "selected_fiscal_year": fiscal_year,
+        "chart": chart,
+        "monthly_data": monthly_data,
+        "top_accounts": top_accounts,
+        "total_income": total_income,
+        "total_expense": total_expense,
+    }
+    return render(request, "ledger/auswertung.html", context)
 
 
 @login_required
