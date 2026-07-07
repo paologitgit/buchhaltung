@@ -2,7 +2,7 @@
 {% block title %}Beleg hochladen – Buchhaltung{% endblock %}
 {% block content %}
 <h1>Beleg fotografieren / hochladen</h1>
-<p class="muted">Auf dem Handy öffnet der Dateiauswahl-Dialog automatisch auch die Kamera. Der Beleg landet im Posteingang und kann später einer Bewegung zugewiesen werden.</p>
+<p class="muted">Auf dem Handy öffnet der Dateiauswahl-Dialog automatisch auch die Kamera. Trag den Betrag ein, dann versucht die App, den Beleg direkt der passenden Bewegung zuzuordnen – bei mehreren oder keinem eindeutigen Treffer landet er im Posteingang.</p>
 <div class="card" style="max-width:480px;">
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
@@ -10,5 +10,6 @@
     <button type="submit">Hochladen</button>
   </form>
 </div>
+<p><a href="{% url 'posteingang_bulk_upload' %}">Mehrere Dateien auf einmal hochladen</a></p>
 <p><a href="{% url 'posteingang_list' %}">&larr; zurück zum Posteingang</a></p>
 {% endblock %}

@@ -66,6 +66,7 @@
           <button type="submit" class="btn secondary">Begradigen</button>
         </form>
         {% endif %}
+        <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Verschieben</a>
         <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
           {% csrf_token %}
           <button type="submit" class="btn danger">Löschen</button>

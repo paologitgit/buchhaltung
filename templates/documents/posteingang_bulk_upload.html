@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% block title %}Mehrere Belege hochladen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Mehrere Belege auf einmal hochladen</h1>
+<p class="muted">Alle ausgewählten Dateien erhalten denselben Beleg-Typ und landen im Posteingang – ohne automatische Zuordnung, da hier kein einzelner Betrag angegeben werden kann. Weise sie danach einzeln über „Bewegung zuweisen“ zu.</p>
+<div class="card" style="max-width:480px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <label for="files">Dateien</label>
+    <input type="file" name="files" id="files" multiple required accept="application/pdf,image/jpeg,image/png,image/webp">
+    <button type="submit">Hochladen</button>
+  </form>
+</div>
+<p><a href="{% url 'posteingang_list' %}">&larr; zurück zum Posteingang</a></p>
+{% endblock %}

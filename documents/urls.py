@@ -6,6 +6,7 @@ urlpatterns = [
     path("bewegung/<int:bewegung_id>/hochladen/", views.beleg_upload, name="beleg_upload"),
     path("posteingang/", views.posteingang_list, name="posteingang_list"),
     path("posteingang/hochladen/", views.posteingang_upload, name="posteingang_upload"),
+    path("posteingang/mehrfach-hochladen/", views.posteingang_bulk_upload, name="posteingang_bulk_upload"),
     path("<int:pk>/", views.beleg_download, name="beleg_download"),
     path("<int:pk>/vorschau/", views.beleg_thumbnail, name="beleg_thumbnail"),
     path("<int:pk>/drehen/", views.beleg_rotate, name="beleg_rotate"),

@@ -1,13 +1,15 @@
 {% extends "base.html" %}
 {% block title %}Beleg zuweisen – Buchhaltung{% endblock %}
 {% block content %}
-<h1>Beleg zuweisen</h1>
+<h1>{% if beleg.bewegung_id %}Beleg verschieben{% else %}Beleg zuweisen{% endif %}</h1>
 
 <div class="card" style="max-width:420px;">
   <div class="beleg-preview">
     <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}" style="max-height:220px;max-width:220px;">
   </div>
   <p>{{ beleg.original_filename }} <span class="muted">({{ beleg.get_document_type_display }})</span></p>
+  {% if beleg.expected_amount %}<p class="muted">Angegebener Betrag: {{ beleg.expected_amount }}{% if beleg.expected_date %}, {{ beleg.expected_date|date:"d.m.Y" }}{% endif %} – passende Bewegungen sind unten vorausgewählt.</p>{% endif %}
+  {% if beleg.bewegung_id %}<p class="muted">Aktuell zugewiesen zu: Bewegung vom {{ beleg.bewegung.booking_date|date:"d.m.Y" }} – {{ beleg.bewegung.description }}</p>{% endif %}
 </div>
 
 <form method="get" class="filters">
@@ -31,15 +33,19 @@
         <form method="post">
           {% csrf_token %}
           <input type="hidden" name="bewegung_id" value="{{ b.pk }}">
-          <button type="submit" class="btn">Diesem Beleg zuweisen</button>
+          <button type="submit" class="btn">{% if beleg.bewegung_id == b.pk %}aktuell zugewiesen{% else %}Zuweisen{% endif %}</button>
         </form>
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="muted">Keine passenden Bewegungen gefunden.</td></tr>
+    <tr><td colspan="5" class="muted">Keine passenden Bewegungen gefunden. Versuch es mit einer Textsuche.</td></tr>
     {% endfor %}
   </tbody>
 </table>
 
+{% if beleg.bewegung_id %}
+<p><a href="{% url 'bewegung_detail' beleg.bewegung_id %}">&larr; zurück zur Bewegung</a></p>
+{% else %}
 <p><a href="{% url 'posteingang_list' %}">&larr; zurück zum Posteingang</a></p>
+{% endif %}
 {% endblock %}

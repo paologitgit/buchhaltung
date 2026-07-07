@@ -4,7 +4,10 @@
 <h1>Beleg-Posteingang</h1>
 <p class="muted">Hier landen Belege, die unterwegs fotografiert wurden, bevor sie einer Bewegung zugewiesen sind.</p>
 
-<p><a class="btn" href="{% url 'posteingang_upload' %}">Beleg fotografieren / hochladen</a></p>
+<p>
+  <a class="btn" href="{% url 'posteingang_upload' %}">Beleg fotografieren / hochladen</a>
+  <a class="btn secondary" href="{% url 'posteingang_bulk_upload' %}">Mehrere auf einmal</a>
+</p>
 
 <ul class="beleg-list">
   {% for beleg in belege %}
@@ -17,6 +20,7 @@
     <div class="beleg-meta">
       <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
       <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
+      {% if beleg.expected_amount %}<div class="muted">Betrag: {{ beleg.expected_amount }}{% if beleg.expected_date %}, {{ beleg.expected_date|date:"d.m.Y" }}{% endif %}</div>{% endif %}
       {% if beleg.note %}<div class="muted">{{ beleg.note }}</div>{% endif %}
       <div class="beleg-actions">
         <a class="btn" href="{% url 'beleg_assign' beleg.pk %}">Bewegung zuweisen</a>

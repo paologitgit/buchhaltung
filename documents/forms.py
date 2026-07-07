@@ -19,3 +19,25 @@ class BelegUploadForm(forms.ModelForm):
         if content_type not in settings.ALLOWED_BELEG_CONTENT_TYPES:
             raise ValidationError("Nur PDF- oder Bilddateien (JPEG/PNG/WEBP) sind erlaubt.")
         return f
+
+
+class PosteingangUploadForm(BelegUploadForm):
+    class Meta(BelegUploadForm.Meta):
+        fields = ["file", "document_type", "expected_amount", "expected_date", "note"]
+        labels = {
+            **BelegUploadForm.Meta.labels,
+            "expected_amount": "Betrag",
+            "expected_date": "Datum (optional)",
+        }
+        widgets = {"expected_date": forms.DateInput(attrs={"type": "date"})}
+        help_texts = {
+            "expected_amount": "Wird genutzt, um den Beleg automatisch der passenden Bewegung zuzuordnen.",
+        }
+
+
+class PosteingangBulkUploadForm(forms.Form):
+    """Nur für das document_type-Feld – die Dateien selbst kommen über ein
+    manuell im Template gerendertes <input multiple>, da Django-FileFields
+    von Haus aus nur eine Datei pro Feld unterstützen."""
+
+    document_type = forms.ChoiceField(choices=Beleg.DocumentType.choices, label="Beleg-Typ (gilt für alle)")
