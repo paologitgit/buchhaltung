@@ -9,3 +9,9 @@ services:
       DJANGO_SETTINGS_MODULE: config.settings.dev
     ports:
       - "8000:8000"
+    volumes:
+      - /Users/paolodonnicola/Documents/ouwan/buchhaltung-backup:/app/backups
+
+  backup-cron:
+    volumes:
+      - /Users/paolodonnicola/Documents/ouwan/buchhaltung-backup:/app/backups
