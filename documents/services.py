@@ -11,7 +11,7 @@ FORMAT_BY_CONTENT_TYPE = {
     "image/webp": "WEBP",
 }
 
-THUMBNAIL_MAX_WIDTH = 400
+THUMBNAIL_MAX_WIDTH = 800
 THUMBNAIL_DIR = Path(settings.MEDIA_ROOT) / "belege_thumbnails"
 
 
@@ -21,7 +21,10 @@ def get_or_create_thumbnail_path(beleg):
     gerendert, für Bilder eine verkleinerte Kopie. Gibt None zurück, wenn für
     den content_type keine Vorschau erzeugt werden kann."""
     THUMBNAIL_DIR.mkdir(parents=True, exist_ok=True)
-    thumb_path = THUMBNAIL_DIR / f"{beleg.pk}.png"
+    # Auflösung im Dateinamen, damit eine künftige Änderung von
+    # THUMBNAIL_MAX_WIDTH alte Cache-Dateien automatisch ungültig macht,
+    # statt eine veraltete (falsch aufgelöste) Vorschau weiter auszuliefern.
+    thumb_path = THUMBNAIL_DIR / f"{beleg.pk}_{THUMBNAIL_MAX_WIDTH}.png"
     source_path = beleg.file.path
 
     if thumb_path.exists() and thumb_path.stat().st_mtime >= os.path.getmtime(source_path):
