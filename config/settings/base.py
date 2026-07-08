@@ -136,3 +136,10 @@ ALLOWED_BELEG_CONTENT_TYPES = [
     "image/png",
     "image/webp",
 ]
+
+# Backup: Datenbank-Dump + Belege als tar.gz, optional per rclone in die Cloud
+# hochgeladen (Remote-Namen kommagetrennt, z.B. "gdrive,dropbox" -- müssen
+# vorher einmalig via "rclone config" im Container eingerichtet werden).
+BACKUP_DIR = BASE_DIR / "backups"
+BACKUP_RETENTION_DAYS = 30
+BACKUP_RCLONE_REMOTES = config("BACKUP_RCLONE_REMOTES", default="", cast=Csv())

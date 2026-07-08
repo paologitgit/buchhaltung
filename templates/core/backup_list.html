@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Backup – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Backup</h1>
+<p class="muted">
+  Ein Backup enthält die komplette Datenbank und alle Belege. Es wird lokal gespeichert
+  {% if rclone_remotes %}und zusätzlich zu folgenden Zielen hochgeladen: {{ rclone_remotes|join:", " }}.
+  {% else %}– es ist aktuell kein Cloud-Ziel (Google Drive/Dropbox) konfiguriert, siehe technische Dokumentation.{% endif %}
+  Ältere Backups werden nach 30 Tagen automatisch gelöscht.
+</p>
+
+<form method="post" action="{% url 'backup_create' %}">
+  {% csrf_token %}
+  <button type="submit">Backup jetzt erstellen</button>
+</form>
+
+<h2>Vorhandene Backups</h2>
+<table>
+  <thead><tr><th>Datei</th><th>Grösse</th><th></th></tr></thead>
+  <tbody>
+    {% for b in backups %}
+    <tr>
+      <td>{{ b.name }}</td>
+      <td>{{ b.size_mb }} MB</td>
+      <td><a class="btn secondary" href="{% url 'backup_download' b.name %}">Herunterladen</a></td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="3" class="muted">Noch kein Backup vorhanden.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endblock %}

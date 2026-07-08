@@ -1,10 +1,25 @@
+import logging
+import re
+from io import StringIO
+from pathlib import Path
+
+from django.conf import settings
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.management import call_command
 from django.db.models import Exists, OuterRef
-from django.shortcuts import render
+from django.http import FileResponse, Http404
+from django.shortcuts import redirect, render
 
 from bank.models import Bewegung
 from documents.models import Beleg
 from ledger.models import FiscalYear, JournalEntry
+
+from .decorators import owner_required
+
+logger = logging.getLogger(__name__)
+
+BACKUP_FILENAME_RE = re.compile(r"^backup_\d{8}_\d{6}\.tar\.gz$")
 
 
 @login_required
@@ -30,3 +45,48 @@ def dashboard(request):
         "recent_entries": JournalEntry.objects.select_related("fiscal_year").order_by("-created_at")[:10],
     }
     return render(request, "core/dashboard.html", context)
+
+
+@login_required
+@owner_required
+def backup_list(request):
+    backup_dir = Path(settings.BACKUP_DIR)
+    backups = []
+    if backup_dir.exists():
+        for f in sorted(backup_dir.glob("backup_*.tar.gz"), reverse=True):
+            backups.append({"name": f.name, "size_mb": round(f.stat().st_size / 1024 / 1024, 1)})
+    return render(
+        request,
+        "core/backup_list.html",
+        {"backups": backups, "rclone_remotes": settings.BACKUP_RCLONE_REMOTES},
+    )
+
+
+@login_required
+@owner_required
+def backup_create(request):
+    if request.method == "POST":
+        out = StringIO()
+        try:
+            call_command("backup", stdout=out)
+            messages.success(request, "Backup wurde erstellt.")
+        except Exception:
+            logger.exception("Backup fehlgeschlagen")
+            messages.error(request, "Backup ist fehlgeschlagen. Details siehe Server-Log.")
+        for line in out.getvalue().splitlines():
+            if line:
+                messages.info(request, line)
+    return redirect("backup_list")
+
+
+@login_required
+@owner_required
+def backup_download(request, filename):
+    if not BACKUP_FILENAME_RE.match(filename):
+        raise Http404
+    path = Path(settings.BACKUP_DIR) / filename
+    if not path.is_file():
+        raise Http404
+    response = FileResponse(open(path, "rb"), content_type="application/gzip")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
