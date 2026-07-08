@@ -44,7 +44,7 @@
 </form>
 
 {% if user.has_write_access %}
-<form method="post" action="{% url 'bewegung_bulk_delete' %}" id="bulk-delete-form" onsubmit="return confirm('Ausgewählte Bewegungen wirklich löschen? Bereits verbuchte Bewegungen werden dabei übersprungen.');">
+<form method="post" action="{% url 'bewegung_bulk_delete' %}" id="bulk-form">
 {% csrf_token %}
 {% endif %}
 <table>
@@ -64,7 +64,7 @@
     {% for b in bewegungen %}
     <tr>
       {% if user.has_write_access %}
-      <td>{% if b.status != "BOOKED" %}<input type="checkbox" name="selected" value="{{ b.pk }}" class="bewegung-checkbox" form="bulk-delete-form">{% endif %}</td>
+      <td>{% if b.status != "BOOKED" %}<input type="checkbox" name="selected" value="{{ b.pk }}" class="bewegung-checkbox" form="bulk-form">{% endif %}</td>
       {% endif %}
       <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.booking_date }}</a></td>
       <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
@@ -86,7 +86,32 @@
   </tbody>
 </table>
 {% if user.has_write_access %}
-<button type="submit" class="btn danger">Ausgewählte löschen</button>
 </form>
+<div class="filters" style="align-items:end;">
+  <div>
+    <label for="bulk-gegenkonto">Gegenkonto (für Sammelverbuchung)</label>
+    <select name="gegenkonto" id="bulk-gegenkonto" form="bulk-form">
+      <option value="">– wählen –</option>
+      {% for account in gegenkonto_choices %}
+      <option value="{{ account.id }}">{{ account.code }} {{ account.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="bulk-vat-code">MWST-Code</label>
+    <select name="vat_code" id="bulk-vat-code" form="bulk-form">
+      <option value="">keine MWST</option>
+      {% for vat in vat_code_choices %}
+      <option value="{{ vat.id }}">{{ vat }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <button type="submit" form="bulk-form" formaction="{% url 'bewegung_bulk_book' %}" class="btn">Ausgewählte verbuchen</button>
+    <button type="submit" form="bulk-form" formaction="{% url 'bewegung_bulk_delete' %}" class="btn danger"
+      onclick="return confirm('Ausgewählte Bewegungen wirklich löschen? Bereits verbuchte Bewegungen werden dabei übersprungen.');">Ausgewählte löschen</button>
+  </div>
+</div>
+<p class="muted">Nur offene Bewegungen lassen sich auswählen. Für die Sammelverbuchung wird für alle ausgewählten Bewegungen dasselbe Gegenkonto (und ggf. derselbe MWST-Code) verwendet.</p>
 {% endif %}
 {% endblock %}

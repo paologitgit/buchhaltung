@@ -7,7 +7,9 @@ from django.shortcuts import get_object_or_404, redirect, render
 from core.decorators import owner_required
 from documents.forms import BelegUploadForm
 from documents.models import Beleg
+from ledger.models import Account
 from ledger.services import book_bewegung
+from vat.models import VatCode
 
 from .forms import BewegungBookingForm, CSVImportForm
 from .models import BankAccount, Bewegung
@@ -94,6 +96,8 @@ def bewegung_list(request):
         "current_order": order,
         "sort_links": sort_links,
         "filters": request.GET,
+        "gegenkonto_choices": Account.objects.filter(is_active=True, is_bank_account=False),
+        "vat_code_choices": VatCode.objects.filter(active=True),
     }
     return render(request, "bank/bewegung_list.html", context)
 
@@ -192,6 +196,48 @@ def bewegung_bulk_delete(request):
             )
         if not deleted_count and not skipped:
             messages.info(request, "Keine Bewegung ausgewählt.")
+    return redirect("bewegung_list")
+
+
+@login_required
+@owner_required
+def bewegung_bulk_book(request):
+    if request.method == "POST":
+        ids = request.POST.getlist("selected")
+        gegenkonto_id = request.POST.get("gegenkonto")
+        vat_code_id = request.POST.get("vat_code")
+
+        if not ids:
+            messages.error(request, "Keine Bewegung ausgewählt.")
+            return redirect("bewegung_list")
+        if not gegenkonto_id:
+            messages.error(request, "Bitte ein Gegenkonto für die Sammelverbuchung auswählen.")
+            return redirect("bewegung_list")
+
+        gegenkonto = get_object_or_404(Account, pk=gegenkonto_id, is_active=True, is_bank_account=False)
+        vat_code = get_object_or_404(VatCode, pk=vat_code_id, active=True) if vat_code_id else None
+
+        candidates = Bewegung.objects.filter(pk__in=ids, status=Bewegung.Status.OFFEN)
+        skipped_not_offen = len(ids) - candidates.count()
+
+        booked = 0
+        errors = []
+        for bewegung in candidates:
+            try:
+                book_bewegung(bewegung, gegenkonto, vat_code, request.user)
+                booked += 1
+            except ValidationError as exc:
+                errors.append(f"{bewegung.booking_date:%d.%m.%Y} {bewegung.description}: {'; '.join(exc.messages)}")
+
+        if booked:
+            messages.success(request, f"{booked} Bewegung(en) verbucht.")
+        for error in errors[:5]:
+            messages.error(request, error)
+        if skipped_not_offen:
+            messages.info(
+                request,
+                f"{skipped_not_offen} Bewegung(en) übersprungen (nicht mehr offen).",
+            )
     return redirect("bewegung_list")
 
 
