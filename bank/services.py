@@ -80,6 +80,9 @@ def import_csv(bank_account, uploaded_file, user):
     duplicate_count = 0
 
     for row in reader:
+        if not any((value or "").strip() for value in row.values()):
+            continue  # leere Zeile (z.B. am Dateiende) uebergehen, nicht als Bewegung zaehlen
+
         row_count += 1
         try:
             date_raw = row[bank_account.csv_date_column].strip()
