@@ -19,7 +19,9 @@
 <p>
   <a class="btn secondary" href="{% url 'journal_export' 'csv' %}?{{ request.GET.urlencode }}">Export CSV</a>
   <a class="btn secondary" href="{% url 'journal_export' 'xlsx' %}?{{ request.GET.urlencode }}">Export Excel</a>
+  <a class="btn secondary" href="{% url 'journal_export' 'zip' %}?{{ request.GET.urlencode }}">Export mit Belegen (ZIP)</a>
 </p>
+<p class="muted">„Export mit Belegen" bündelt das Journal (CSV) und alle hochgeladenen Belege der verbuchten Bewegungen im gewählten Zeitraum in einer ZIP-Datei.</p>
 
 <table>
   <thead><tr><th>Datum</th><th>Text</th><th>Konto</th><th>Soll</th><th>Haben</th><th>MWST</th></tr></thead>

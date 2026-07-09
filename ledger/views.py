@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from core.decorators import owner_required
 
 from .analytics import build_income_expense_chart, monthly_income_expense, top_expense_accounts
-from .export import export_journal_csv, export_journal_xlsx
+from .export import export_journal_csv, export_journal_xlsx, export_journal_zip
 from .forms import FiscalYearForm
 from .models import Account, FiscalYear, JournalEntry
 
@@ -75,6 +75,8 @@ def journal_export(request, fmt):
         return export_journal_csv(fiscal_year_id)
     if fmt == "xlsx":
         return export_journal_xlsx(fiscal_year_id)
+    if fmt == "zip":
+        return export_journal_zip(fiscal_year_id)
     return HttpResponseBadRequest("Unbekanntes Exportformat.")
 
 
