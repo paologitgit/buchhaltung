@@ -1,17 +1,21 @@
 import logging
+import uuid
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
-from bank.models import Bewegung
+from bank.models import BankAccount, Bewegung
 from core.decorators import owner_required
 
 from .forms import BelegUploadForm, PosteingangBulkUploadForm, PosteingangUploadForm
 from .matching import bewegungen_matching_amount, find_matching_bewegung
 from .models import Beleg
 from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
+from .statement_parser import parse_statement
 
 logger = logging.getLogger(__name__)
 
@@ -215,3 +219,129 @@ def beleg_assign(request, pk):
         )
     matches = matches[:30]
     return render(request, "documents/beleg_assign.html", {"beleg": beleg, "matches": matches, "query": query})
+
+
+SESSION_KEY_STATEMENT_SCAN = "statement_scan"
+
+
+@login_required
+@owner_required
+def statement_scan_upload(request):
+    if request.method == "POST":
+        bank_account_id = request.POST.get("bank_account")
+        uploaded = request.FILES.get("file")
+        if not uploaded or not bank_account_id:
+            messages.error(request, "Bitte Bankkonto und PDF-Datei auswählen.")
+            return redirect("statement_scan_upload")
+        if not uploaded.name.lower().endswith(".pdf"):
+            messages.error(request, "Bitte eine PDF-Datei hochladen.")
+            return redirect("statement_scan_upload")
+        if uploaded.size > 15 * 1024 * 1024:
+            messages.error(request, "Datei ist zu gross (max. 15 MB).")
+            return redirect("statement_scan_upload")
+
+        try:
+            from pypdf import PdfReader
+
+            reader = PdfReader(uploaded)
+            text = "\n".join(page.extract_text() or "" for page in reader.pages)
+        except Exception:
+            logger.exception("Kreditkarten-Abrechnung konnte nicht gelesen werden")
+            messages.error(request, "PDF konnte nicht gelesen werden.")
+            return redirect("statement_scan_upload")
+
+        transactions = parse_statement(text)
+        if not transactions:
+            messages.info(request, "Es wurden keine Positionen in der PDF gefunden.")
+            return redirect("statement_scan_upload")
+
+        uploaded.seek(0)
+        temp_path = default_storage.save(f"tmp_statements/{uuid.uuid4()}.pdf", ContentFile(uploaded.read()))
+
+        rows = []
+        for i, tx in enumerate(transactions):
+            candidates = list(
+                bewegungen_matching_amount(tx["amount"])
+                .filter(bank_account_id=bank_account_id)
+                .select_related("bank_account")
+            )
+            # Naehste Betrags-Uebereinstimmung zuerst (Toleranz erlaubt kleine
+            # Rundungsdifferenzen, soll aber einen exakten Treffer nicht von
+            # einer bloss zufaellig aehnlichen anderen Bewegung verdraengen lassen).
+            candidates.sort(key=lambda b: (abs(abs(b.amount) - tx["amount"]), -b.booking_date.toordinal()))
+            candidates = candidates[:5]
+            rows.append(
+                {
+                    "index": i,
+                    "date": tx["date"].isoformat(),
+                    "description": tx["description"],
+                    "amount": str(tx["amount"]),
+                    "candidates": [
+                        {
+                            "id": b.pk,
+                            "date": b.booking_date.isoformat(),
+                            "description": b.description,
+                            "amount": str(b.amount),
+                        }
+                        for b in candidates
+                    ],
+                }
+            )
+
+        request.session[SESSION_KEY_STATEMENT_SCAN] = {
+            "file_path": temp_path,
+            "original_filename": uploaded.name,
+            "rows": rows,
+        }
+        return redirect("statement_scan_review")
+
+    bank_accounts = BankAccount.objects.filter(is_active=True)
+    return render(request, "documents/statement_scan_upload.html", {"bank_accounts": bank_accounts})
+
+
+@login_required
+@owner_required
+def statement_scan_review(request):
+    data = request.session.get(SESSION_KEY_STATEMENT_SCAN)
+    if not data:
+        messages.error(request, "Keine Abrechnung zum Prüfen gefunden. Bitte erneut hochladen.")
+        return redirect("statement_scan_upload")
+
+    if request.method == "POST":
+        confirmed = 0
+        for row in data["rows"]:
+            bewegung_id = request.POST.get(f"bewegung_{row['index']}")
+            if not bewegung_id:
+                continue
+            try:
+                bewegung = Bewegung.objects.get(pk=bewegung_id)
+            except Bewegung.DoesNotExist:
+                continue
+
+            with default_storage.open(data["file_path"], "rb") as f:
+                file_bytes = f.read()
+
+            beleg = Beleg(
+                bewegung=bewegung,
+                document_type=Beleg.DocumentType.BANKBELEG,
+                uploaded_by=request.user,
+                original_filename=data["original_filename"],
+                content_type="application/pdf",
+                size_bytes=len(file_bytes),
+                note=f"Automatisch erkannt: {row['description']} ({row['amount']} CHF)",
+            )
+            beleg.file.save(data["original_filename"], ContentFile(file_bytes), save=False)
+            beleg.save()
+            confirmed += 1
+
+        if default_storage.exists(data["file_path"]):
+            default_storage.delete(data["file_path"])
+        del request.session[SESSION_KEY_STATEMENT_SCAN]
+
+        if confirmed:
+            messages.success(request, f"{confirmed} Beleg(e) zugewiesen.")
+        else:
+            messages.info(request, "Keine Zuordnung bestätigt.")
+        return redirect("posteingang_list")
+
+    return render(request, "documents/statement_scan_review.html", {"rows": data["rows"]})

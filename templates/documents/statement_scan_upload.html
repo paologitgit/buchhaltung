@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Abrechnung scannen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Kreditkarten-Abrechnung scannen</h1>
+<p class="muted">
+  Lade die monatliche PDF-Sammelabrechnung hoch (z.B. von Cornèrcard). Die App liest die
+  einzelnen Positionen (Datum, Text, Betrag) heraus und schlägt dir passende Bewegungen vor,
+  denen sie als Bankbeleg angehängt werden können.
+</p>
+<div class="card" style="max-width:480px;">
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <label for="bank_account">Bankkonto</label>
+    <select name="bank_account" id="bank_account" required>
+      {% for ba in bank_accounts %}
+      <option value="{{ ba.id }}">{{ ba.name }}</option>
+      {% endfor %}
+    </select>
+    <label for="file">PDF-Abrechnung</label>
+    <input type="file" name="file" id="file" accept="application/pdf" required>
+    <button type="submit">Positionen erkennen</button>
+  </form>
+</div>
+{% endblock %}

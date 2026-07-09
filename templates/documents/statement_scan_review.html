@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Abrechnung prüfen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Erkannte Positionen prüfen</h1>
+<p class="muted">
+  Pro Position ist der wahrscheinlichste Treffer vorausgewählt. Prüfe kurz, wähle bei
+  Bedarf eine andere Bewegung oder „überspringen“, und speichere dann. Die Abrechnung wird
+  als Bankbeleg an jede bestätigte Bewegung angehängt.
+</p>
+<form method="post">
+  {% csrf_token %}
+  <table>
+    <thead><tr><th>Datum</th><th>Beschreibung (Abrechnung)</th><th>Betrag</th><th>Zuordnung</th></tr></thead>
+    <tbody>
+      {% for row in rows %}
+      <tr>
+        <td>{{ row.date }}</td>
+        <td>{{ row.description }}</td>
+        <td>{{ row.amount }}</td>
+        <td>
+          {% if row.candidates %}
+            {% for c in row.candidates %}
+            <label style="display:block;">
+              <input type="radio" name="bewegung_{{ row.index }}" value="{{ c.id }}" {% if forloop.first %}checked{% endif %}>
+              {{ c.date }} – {{ c.description|truncatechars:40 }} ({{ c.amount }})
+            </label>
+            {% endfor %}
+            <label style="display:block;" class="muted">
+              <input type="radio" name="bewegung_{{ row.index }}" value="">
+              überspringen
+            </label>
+          {% else %}
+            <span class="muted">keine passende Bewegung gefunden</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" class="muted">Keine Positionen erkannt.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <button type="submit">Bestätigte Zuordnungen speichern</button>
+</form>
+{% endblock %}
