@@ -16,4 +16,5 @@ urlpatterns = [
     path("<int:pk>/loeschen/", views.beleg_delete, name="beleg_delete"),
     path("<int:pk>/zuweisen/", views.beleg_assign, name="beleg_assign"),
     path("<int:pk>/anhaengen/", views.beleg_copy, name="beleg_copy"),
+    path("<int:pk>/ausblenden/", views.beleg_toggle_hidden, name="beleg_toggle_hidden"),
 ]

@@ -9,6 +9,7 @@ from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from bank.models import BankAccount, Bewegung
 from core.decorators import owner_required
@@ -57,6 +58,9 @@ def beleg_list(request):
     if date_to:
         belege = belege.filter(uploaded_at__date__lte=date_to)
 
+    if request.GET.get("ausblenden") == "1":
+        belege = belege.exclude(hidden=True)
+
     context = {
         "belege": belege[:300],
         "document_type_choices": Beleg.DocumentType.choices,
@@ -64,6 +68,19 @@ def beleg_list(request):
         "filters": request.GET,
     }
     return render(request, "documents/beleg_list.html", context)
+
+
+@login_required
+@owner_required
+def beleg_toggle_hidden(request, pk):
+    beleg = get_object_or_404(Beleg, pk=pk)
+    if request.method == "POST":
+        beleg.hidden = not beleg.hidden
+        beleg.save(update_fields=["hidden"])
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+    return _redirect_after_beleg_action(beleg)
 
 
 @login_required

@@ -40,7 +40,7 @@
       </a>
     </div>
     <div class="beleg-meta">
-      <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
+      <div><span class="badge">{{ beleg.get_document_type_display }}</span>{% if beleg.hidden %} <span class="badge">nicht mehr angezeigt</span>{% endif %}</div>
       <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
       {% if user.has_write_access %}
       <div class="beleg-actions">
@@ -68,6 +68,11 @@
         {% endif %}
         <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Verschieben</a>
         <a class="btn secondary" href="{% url 'beleg_copy' beleg.pk %}">An weitere Bewegung anhängen</a>
+        <form method="post" action="{% url 'beleg_toggle_hidden' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn secondary">{% if beleg.hidden %}Wieder anzeigen{% else %}Nicht mehr zeigen{% endif %}</button>
+        </form>
         <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
           {% csrf_token %}
           <button type="submit" class="btn danger">Löschen</button>

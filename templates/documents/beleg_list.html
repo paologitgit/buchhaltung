@@ -34,6 +34,9 @@
     <label for="bis">bis</label>
     <input type="date" name="bis" id="bis" value="{{ filters.bis|default:'' }}">
   </div>
+  <div>
+    <label><input type="checkbox" name="ausblenden" value="1" {% if filters.ausblenden == "1" %}checked{% endif %}> bereits einmal abgelegt, nicht mehr zeigen (gemäss Option)</label>
+  </div>
   <div><button type="submit">Filtern</button></div>
 </form>
 
@@ -46,7 +49,7 @@
       </a>
     </div>
     <div class="beleg-meta">
-      <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
+      <div><span class="badge">{{ beleg.get_document_type_display }}</span>{% if beleg.hidden %} <span class="badge">nicht mehr angezeigt</span>{% endif %}</div>
       <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
       {% if beleg.note %}<div class="muted">{{ beleg.note }}</div>{% endif %}
       <div>
@@ -64,6 +67,11 @@
         {% else %}
         <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Zuweisen</a>
         {% endif %}
+        <form method="post" action="{% url 'beleg_toggle_hidden' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <button type="submit" class="btn secondary">{% if beleg.hidden %}Wieder anzeigen{% else %}Nicht mehr zeigen{% endif %}</button>
+        </form>
       </div>
       {% endif %}
     </div>
