@@ -16,6 +16,7 @@
       <a href="{% url 'bewegung_list' %}">Bewegungen</a>
       {% if user.has_write_access %}<a href="{% url 'bewegung_import' %}">CSV-Import</a>{% endif %}
       {% if user.has_write_access %}<a href="{% url 'posteingang_list' %}">Posteingang</a>{% endif %}
+      <a href="{% url 'beleg_list' %}">Belege</a>
       {% if user.has_write_access %}<a href="{% url 'statement_scan_upload' %}">Abrechnung scannen</a>{% endif %}
       <a href="{% url 'journal_list' %}">Journal</a>
       <a href="{% url 'berichte' %}">Berichte</a>

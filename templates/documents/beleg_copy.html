@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}Beleg anhängen – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Beleg an weitere Bewegung anhängen</h1>
+<p class="muted">Der Beleg bleibt bei seiner aktuellen Bewegung bestehen – es wird zusätzlich eine Kopie an die hier gewählte Bewegung angehängt. Kein erneuter Datei-Upload nötig.</p>
+
+<div class="card" style="max-width:420px;">
+  <div class="beleg-preview">
+    <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
+  </div>
+  <p>{{ beleg.original_filename }} <span class="muted">({{ beleg.get_document_type_display }})</span></p>
+  {% if beleg.bewegung_id %}<p class="muted">Aktuell zugewiesen zu: Bewegung vom {{ beleg.bewegung.booking_date|date:"d.m.Y" }} – {{ beleg.bewegung.description }}</p>{% endif %}
+</div>
+
+<form method="get" class="filters">
+  <div>
+    <label for="q">Bewegung suchen (Text)</label>
+    <input type="text" name="q" id="q" value="{{ query }}" placeholder="z.B. Migros, Buchli...">
+  </div>
+  <div>
+    <label for="betrag">oder nach Betrag</label>
+    <input type="text" name="betrag" id="betrag" value="{{ amount_query }}" placeholder="z.B. 47.20">
+  </div>
+  <div><button type="submit">Suchen</button></div>
+</form>
+{% if amount_error %}<p class="errorlist">{{ amount_error }}</p>{% endif %}
+
+<table>
+  <thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Status</th><th></th></tr></thead>
+  <tbody>
+    {% for b in matches %}
+    <tr>
+      <td>{{ b.booking_date }}</td>
+      <td>{{ b.description|truncatechars:60 }}</td>
+      <td>{{ b.amount }} {{ b.currency }}</td>
+      <td>{{ b.get_status_display }}</td>
+      <td>
+        <form method="post">
+          {% csrf_token %}
+          <input type="hidden" name="bewegung_id" value="{{ b.pk }}">
+          <button type="submit" class="btn">Anhängen</button>
+        </form>
+      </td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="muted">Keine passenden Bewegungen gefunden. Versuch es mit einer Textsuche.</td></tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+{% if beleg.bewegung_id %}
+<p><a href="{% url 'bewegung_detail' beleg.bewegung_id %}">&larr; zurück zur Bewegung</a></p>
+{% else %}
+<p><a href="{% url 'beleg_list' %}">&larr; zurück zu allen Belegen</a></p>
+{% endif %}
+{% endblock %}

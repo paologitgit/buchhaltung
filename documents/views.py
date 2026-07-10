@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
 
@@ -25,6 +26,44 @@ def _redirect_after_beleg_action(beleg):
     if beleg.bewegung_id:
         return redirect("bewegung_detail", pk=beleg.bewegung_id)
     return redirect("posteingang_list")
+
+
+@login_required
+def beleg_list(request):
+    belege = Beleg.objects.select_related(
+        "bewegung", "bewegung__bank_account", "uploaded_by"
+    ).order_by("-uploaded_at")
+
+    document_type = request.GET.get("typ")
+    if document_type:
+        belege = belege.filter(document_type=document_type)
+
+    bank_account_id = request.GET.get("bank_account")
+    if bank_account_id:
+        belege = belege.filter(bewegung__bank_account_id=bank_account_id)
+
+    search = request.GET.get("q")
+    if search:
+        belege = belege.filter(
+            Q(original_filename__icontains=search)
+            | Q(note__icontains=search)
+            | Q(bewegung__description__icontains=search)
+        )
+
+    date_from = request.GET.get("von")
+    if date_from:
+        belege = belege.filter(uploaded_at__date__gte=date_from)
+    date_to = request.GET.get("bis")
+    if date_to:
+        belege = belege.filter(uploaded_at__date__lte=date_to)
+
+    context = {
+        "belege": belege[:300],
+        "document_type_choices": Beleg.DocumentType.choices,
+        "bank_accounts": BankAccount.objects.filter(is_active=True),
+        "filters": request.GET,
+    }
+    return render(request, "documents/beleg_list.html", context)
 
 
 @login_required
@@ -239,6 +278,68 @@ def beleg_assign(request, pk):
         "amount_error": amount_error,
     }
     return render(request, "documents/beleg_assign.html", context)
+
+
+@login_required
+@owner_required
+def beleg_copy(request, pk):
+    """Hängt eine Kopie eines bereits hochgeladenen Belegs an eine weitere
+    Bewegung an, ohne dass die Datei erneut hochgeladen werden muss
+    (z.B. eine Kreditkartenabrechnung, die mehrere Bewegungen belegt)."""
+    beleg = get_object_or_404(Beleg, pk=pk)
+    if request.method == "POST":
+        bewegung_id = request.POST.get("bewegung_id")
+        bewegung = get_object_or_404(Bewegung, pk=bewegung_id)
+        with beleg.file.open("rb") as f:
+            file_bytes = f.read()
+        copy = Beleg(
+            bewegung=bewegung,
+            document_type=beleg.document_type,
+            uploaded_by=request.user,
+            original_filename=beleg.original_filename,
+            content_type=beleg.content_type,
+            size_bytes=len(file_bytes),
+            note=beleg.note or f"Kopie von Beleg #{beleg.pk}",
+        )
+        copy.file.save(beleg.original_filename, ContentFile(file_bytes), save=False)
+        copy.save()
+        messages.success(
+            request,
+            f"Beleg wurde zusätzlich an Bewegung vom {bewegung.booking_date:%d.%m.%Y} angehängt.",
+        )
+        return redirect("bewegung_detail", pk=bewegung.pk)
+
+    query = request.GET.get("q", "")
+    amount_query = request.GET.get("betrag", "")
+
+    matches = Bewegung.objects.select_related("bank_account").exclude(pk=beleg.bewegung_id)
+    amount_error = None
+    if amount_query:
+        try:
+            matches = bewegungen_matching_amount(Decimal(amount_query.replace(",", "."))).exclude(
+                pk=beleg.bewegung_id
+            ).select_related("bank_account")
+        except InvalidOperation:
+            amount_error = "Ungültiger Betrag."
+    elif query:
+        matches = matches.filter(description__icontains=query)
+    elif beleg.expected_amount:
+        matches = bewegungen_matching_amount(beleg.expected_amount).exclude(
+            pk=beleg.bewegung_id
+        ).select_related("bank_account")
+
+    if query and amount_query and not amount_error:
+        matches = matches.filter(description__icontains=query)
+
+    matches = matches.order_by("-booking_date")[:30]
+    context = {
+        "beleg": beleg,
+        "matches": matches,
+        "query": query,
+        "amount_query": amount_query,
+        "amount_error": amount_error,
+    }
+    return render(request, "documents/beleg_copy.html", context)
 
 
 SESSION_KEY_STATEMENT_SCAN = "statement_scan"

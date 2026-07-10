@@ -4,6 +4,7 @@ from . import views
 
 urlpatterns = [
     path("bewegung/<int:bewegung_id>/hochladen/", views.beleg_upload, name="beleg_upload"),
+    path("alle/", views.beleg_list, name="beleg_list"),
     path("posteingang/", views.posteingang_list, name="posteingang_list"),
     path("posteingang/hochladen/", views.posteingang_upload, name="posteingang_upload"),
     path("posteingang/mehrfach-hochladen/", views.posteingang_bulk_upload, name="posteingang_bulk_upload"),
@@ -14,4 +15,5 @@ urlpatterns = [
     path("<int:pk>/drehen/", views.beleg_rotate, name="beleg_rotate"),
     path("<int:pk>/loeschen/", views.beleg_delete, name="beleg_delete"),
     path("<int:pk>/zuweisen/", views.beleg_assign, name="beleg_assign"),
+    path("<int:pk>/anhaengen/", views.beleg_copy, name="beleg_copy"),
 ]

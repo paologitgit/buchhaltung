@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Belege – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Alle Belege</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="q">Suche</label>
+    <input type="text" name="q" id="q" value="{{ filters.q|default:'' }}" placeholder="Dateiname, Notiz, Bewegung...">
+  </div>
+  <div>
+    <label for="typ">Beleg-Typ</label>
+    <select name="typ" id="typ">
+      <option value="">Alle</option>
+      {% for value, label in document_type_choices %}
+      <option value="{{ value }}" {% if filters.typ == value %}selected{% endif %}>{{ label }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="bank_account">Bankkonto</label>
+    <select name="bank_account" id="bank_account">
+      <option value="">Alle</option>
+      {% for ba in bank_accounts %}
+      <option value="{{ ba.id }}" {% if filters.bank_account == ba.id|stringformat:"s" %}selected{% endif %}>{{ ba.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="von">Hochgeladen von</label>
+    <input type="date" name="von" id="von" value="{{ filters.von|default:'' }}">
+  </div>
+  <div>
+    <label for="bis">bis</label>
+    <input type="date" name="bis" id="bis" value="{{ filters.bis|default:'' }}">
+  </div>
+  <div><button type="submit">Filtern</button></div>
+</form>
+
+<ul class="beleg-list">
+  {% for beleg in belege %}
+  <li class="beleg-item">
+    <div class="beleg-preview small">
+      <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
+        <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
+      </a>
+    </div>
+    <div class="beleg-meta">
+      <div><span class="badge">{{ beleg.get_document_type_display }}</span></div>
+      <div><a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">{{ beleg.original_filename }}</a> <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
+      {% if beleg.note %}<div class="muted">{{ beleg.note }}</div>{% endif %}
+      <div>
+        {% if beleg.bewegung_id %}
+        Bewegung: <a href="{% url 'bewegung_detail' beleg.bewegung_id %}">{{ beleg.bewegung.booking_date|date:"d.m.Y" }} – {{ beleg.bewegung.description|truncatechars:50 }} ({{ beleg.bewegung.amount }} {{ beleg.bewegung.currency }})</a>
+        {% else %}
+        <span class="muted">im Posteingang, noch keiner Bewegung zugewiesen</span>
+        {% endif %}
+      </div>
+      {% if user.has_write_access %}
+      <div class="beleg-actions">
+        {% if beleg.bewegung_id %}
+        <a class="btn secondary" href="{% url 'beleg_copy' beleg.pk %}">An weitere Bewegung anhängen</a>
+        <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Verschieben</a>
+        {% else %}
+        <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Zuweisen</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+  </li>
+  {% empty %}
+  <li class="muted">Keine Belege gefunden.</li>
+  {% endfor %}
+</ul>
+{% endblock %}

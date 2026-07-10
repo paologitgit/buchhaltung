@@ -67,6 +67,7 @@
         </form>
         {% endif %}
         <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Verschieben</a>
+        <a class="btn secondary" href="{% url 'beleg_copy' beleg.pk %}">An weitere Bewegung anhängen</a>
         <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
           {% csrf_token %}
           <button type="submit" class="btn danger">Löschen</button>

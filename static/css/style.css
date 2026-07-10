@@ -312,6 +312,15 @@ button:hover, .btn:hover {
   background: var(--bg);
 }
 
+.beleg-preview.small img {
+  max-height: 64px;
+  max-width: 90px;
+}
+
+.beleg-preview.small img:hover {
+  transform: scale(3.5);
+}
+
 .beleg-meta {
   flex: 1;
   min-width: 0;
