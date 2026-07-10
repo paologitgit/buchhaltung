@@ -293,8 +293,8 @@ button:hover, .btn:hover {
 
 .beleg-preview img {
   display: block;
-  max-height: 220px;
-  max-width: 220px;
+  max-height: 340px;
+  max-width: 340px;
   object-fit: contain;
   border: 1px solid var(--border);
   border-radius: 3px;

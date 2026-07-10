@@ -5,7 +5,7 @@
 
 <div class="card" style="max-width:420px;">
   <div class="beleg-preview">
-    <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}" style="max-height:220px;max-width:220px;">
+    <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
   </div>
   <p>{{ beleg.original_filename }} <span class="muted">({{ beleg.get_document_type_display }})</span></p>
   {% if beleg.expected_amount %}<p class="muted">Angegebener Betrag: {{ beleg.expected_amount }}{% if beleg.expected_date %}, {{ beleg.expected_date|date:"d.m.Y" }}{% endif %} – passende Bewegungen sind unten vorausgewählt.</p>{% endif %}
@@ -17,8 +17,13 @@
     <label for="q">Bewegung suchen (Text)</label>
     <input type="text" name="q" id="q" value="{{ query }}" placeholder="z.B. Migros, Buchli...">
   </div>
+  <div>
+    <label for="betrag">oder nach Betrag</label>
+    <input type="text" name="betrag" id="betrag" value="{{ amount_query }}" placeholder="z.B. 47.20">
+  </div>
   <div><button type="submit">Suchen</button></div>
 </form>
+{% if amount_error %}<p class="errorlist">{{ amount_error }}</p>{% endif %}
 
 <table>
   <thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Status</th><th></th></tr></thead>

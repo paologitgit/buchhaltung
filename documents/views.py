@@ -1,5 +1,6 @@
 import logging
 import uuid
+from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
@@ -210,15 +211,34 @@ def beleg_assign(request, pk):
         return redirect("bewegung_detail", pk=bewegung.pk)
 
     query = request.GET.get("q", "")
+    amount_query = request.GET.get("betrag", "")
+
     matches = Bewegung.objects.select_related("bank_account").order_by("-booking_date")
-    if query:
+    amount_error = None
+    if amount_query:
+        try:
+            matches = bewegungen_matching_amount(Decimal(amount_query.replace(",", "."))).select_related(
+                "bank_account"
+            )
+        except InvalidOperation:
+            amount_error = "Ungültiger Betrag."
+    elif query:
         matches = matches.filter(description__icontains=query)
     elif beleg.expected_amount:
-        matches = bewegungen_matching_amount(beleg.expected_amount).select_related("bank_account").order_by(
-            "-booking_date"
-        )
-    matches = matches[:30]
-    return render(request, "documents/beleg_assign.html", {"beleg": beleg, "matches": matches, "query": query})
+        matches = bewegungen_matching_amount(beleg.expected_amount).select_related("bank_account")
+
+    if query and amount_query and not amount_error:
+        matches = matches.filter(description__icontains=query)
+
+    matches = matches.order_by("-booking_date")[:30]
+    context = {
+        "beleg": beleg,
+        "matches": matches,
+        "query": query,
+        "amount_query": amount_query,
+        "amount_error": amount_error,
+    }
+    return render(request, "documents/beleg_assign.html", context)
 
 
 SESSION_KEY_STATEMENT_SCAN = "statement_scan"
