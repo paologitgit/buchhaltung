@@ -69,6 +69,9 @@ def beleg_list(request):
 
     paginator = Paginator(belege, BELEG_LIST_PAGE_SIZE)
     page_obj = paginator.get_page(request.GET.get("seite"))
+    page_obj.object_list = list(page_obj.object_list)
+
+    _attach_group_members(page_obj.object_list)
 
     context = {
         "belege": page_obj,
@@ -78,6 +81,24 @@ def beleg_list(request):
         "filters": request.GET,
     }
     return render(request, "documents/beleg_list.html", context)
+
+
+def _attach_group_members(belege):
+    """Setzt auf jedem Beleg `group_members`: die anderen Belege (Original
+    und/oder weitere Kopien), die über 'an weitere Bewegung anhängen' aus
+    demselben Dokument entstanden sind -- für die Anzeige "auch abgelegt
+    bei ..." in der Belege-Übersicht."""
+    root_ids = {b.source_id or b.id for b in belege}
+    related = Beleg.objects.filter(Q(pk__in=root_ids) | Q(source_id__in=root_ids)).select_related(
+        "bewegung", "bewegung__bank_account"
+    )
+    by_root = {}
+    for r in related:
+        by_root.setdefault(r.source_id or r.id, []).append(r)
+
+    for beleg in belege:
+        root_id = beleg.source_id or beleg.id
+        beleg.group_members = [m for m in by_root.get(root_id, []) if m.pk != beleg.pk]
 
 
 @login_required
@@ -327,6 +348,7 @@ def beleg_copy(request, pk):
             content_type=beleg.content_type,
             size_bytes=len(file_bytes),
             note=beleg.note or f"Kopie von Beleg #{beleg.pk}",
+            source=beleg.source or beleg,
         )
         copy.file.save(beleg.original_filename, ContentFile(file_bytes), save=False)
         copy.save()

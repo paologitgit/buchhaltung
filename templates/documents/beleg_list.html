@@ -59,6 +59,22 @@
         <span class="muted">im Posteingang, noch keiner Bewegung zugewiesen</span>
         {% endif %}
       </div>
+      {% if beleg.group_members %}
+      <div class="muted">
+        Auch abgelegt bei:
+        <ul style="margin:0.2rem 0 0 1.1rem; padding:0;">
+          {% for m in beleg.group_members %}
+          <li>
+            {% if m.bewegung_id %}
+            <a href="{% url 'bewegung_detail' m.bewegung_id %}">{{ m.bewegung.booking_date|date:"d.m.Y" }} – {{ m.bewegung.description|truncatechars:40 }} ({{ m.bewegung.amount }} {{ m.bewegung.currency }})</a>
+            {% else %}
+            im Posteingang, noch keiner Bewegung zugewiesen
+            {% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% if user.has_write_access %}
       <div class="beleg-actions">
         {% if beleg.bewegung_id %}

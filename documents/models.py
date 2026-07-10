@@ -36,6 +36,14 @@ class Beleg(models.Model):
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=255, blank=True)
+    source = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="copies",
+        help_text="Gesetzt, wenn dieser Beleg über 'an weitere Bewegung anhängen' als Kopie eines anderen Belegs entstanden ist.",
+    )
     hidden = models.BooleanField(
         default=False,
         verbose_name="Nicht mehr anzeigen",
