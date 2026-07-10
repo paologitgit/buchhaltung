@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.core.paginator import Paginator
 from django.db.models import Q
 from django.http import FileResponse, Http404
 from django.shortcuts import get_object_or_404, redirect, render
@@ -21,6 +22,11 @@ from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pd
 from .statement_parser import parse_statement
 
 logger = logging.getLogger(__name__)
+
+# Begrenzt die Anzahl gleichzeitig angeforderter Thumbnails pro Seitenaufruf:
+# jede Vorschau wird beim ersten Abruf serverseitig gerendert (PDF -> PNG),
+# zu viele auf einmal überlasten die wenigen gunicorn-Worker (WORKER TIMEOUT).
+BELEG_LIST_PAGE_SIZE = 40
 
 
 def _redirect_after_beleg_action(beleg):
@@ -61,8 +67,12 @@ def beleg_list(request):
     if request.GET.get("ausblenden") == "1":
         belege = belege.exclude(hidden=True)
 
+    paginator = Paginator(belege, BELEG_LIST_PAGE_SIZE)
+    page_obj = paginator.get_page(request.GET.get("seite"))
+
     context = {
-        "belege": belege[:300],
+        "belege": page_obj,
+        "page_obj": page_obj,
         "document_type_choices": Beleg.DocumentType.choices,
         "bank_accounts": BankAccount.objects.filter(is_active=True),
         "filters": request.GET,

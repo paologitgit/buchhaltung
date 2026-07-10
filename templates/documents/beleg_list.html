@@ -45,7 +45,7 @@
   <li class="beleg-item">
     <div class="beleg-preview small">
       <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
-        <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}">
+        <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}" loading="lazy">
       </a>
     </div>
     <div class="beleg-meta">
@@ -80,4 +80,16 @@
   <li class="muted">Keine Belege gefunden.</li>
   {% endfor %}
 </ul>
+
+{% if page_obj.paginator.num_pages > 1 %}
+<p class="muted">
+  Seite {{ page_obj.number }} von {{ page_obj.paginator.num_pages }} ({{ page_obj.paginator.count }} Belege)
+  {% if page_obj.has_previous %}
+  &nbsp;<a href="?{% for key, value in filters.items %}{% if key != 'seite' %}{{ key }}={{ value|urlencode }}&amp;{% endif %}{% endfor %}seite={{ page_obj.previous_page_number }}">&larr; vorherige</a>
+  {% endif %}
+  {% if page_obj.has_next %}
+  &nbsp;<a href="?{% for key, value in filters.items %}{% if key != 'seite' %}{{ key }}={{ value|urlencode }}&amp;{% endif %}{% endfor %}seite={{ page_obj.next_page_number }}">nächste &rarr;</a>
+  {% endif %}
+</p>
+{% endif %}
 {% endblock %}
