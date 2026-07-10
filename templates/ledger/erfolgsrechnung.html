@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Erfolgsrechnung – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Erfolgsrechnung</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr" onchange="this.form.submit()">
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if selected_fiscal_year.id == fy.id %}selected{% endif %}>{{ fy }}{% if fy.is_closed %} (abgeschlossen){% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if data %}
+<p class="muted">Periode: {{ selected_fiscal_year.start_date }} – {{ selected_fiscal_year.end_date }}</p>
+
+<h2>Aufwand</h2>
+<table>
+  <tbody>
+    {% for row in data.aufwand_rows %}
+    <tr>
+      <td>{{ row.account.code }} {{ row.account.name }}</td>
+      <td class="text-right">{{ row.balance }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="2" class="muted">Kein Aufwand gebucht.</td></tr>
+    {% endfor %}
+    <tr class="total-row"><td>Total Aufwand</td><td class="text-right">{{ data.total_aufwand }}</td></tr>
+  </tbody>
+</table>
+
+<h2>Ertrag</h2>
+<table>
+  <tbody>
+    {% for row in data.ertrag_rows %}
+    <tr>
+      <td>{{ row.account.code }} {{ row.account.name }}</td>
+      <td class="text-right">{{ row.balance }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="2" class="muted">Kein Ertrag gebucht.</td></tr>
+    {% endfor %}
+    <tr class="total-row"><td>Total Ertrag</td><td class="text-right">{{ data.total_ertrag }}</td></tr>
+  </tbody>
+</table>
+
+<div class="stat-grid">
+  <div class="stat{% if data.result < 0 %} warn{% endif %}">
+    <div class="value">{{ data.result }}</div>
+    <div class="label">{% if data.result >= 0 %}Jahresgewinn{% else %}Jahresverlust{% endif %} (CHF)</div>
+  </div>
+</div>
+{% else %}
+<p class="muted">Kein Geschäftsjahr ausgewählt.</p>
+{% endif %}
+{% endblock %}

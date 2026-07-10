@@ -423,3 +423,43 @@ button:hover, .btn:hover {
   text-align: right;
   white-space: nowrap;
 }
+
+.text-right {
+  text-align: right;
+}
+
+.total-row td {
+  font-weight: 700;
+  border-top: 2px solid var(--fg);
+  border-bottom: none;
+}
+
+.report-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-bottom: 2rem;
+}
+
+.report-card {
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1.25rem;
+  text-decoration: none;
+  color: var(--fg);
+  display: block;
+}
+
+.report-card:hover {
+  background: var(--surface);
+}
+
+.report-card .report-card-title {
+  font-weight: 700;
+  margin-bottom: 0.4rem;
+}
+
+.report-card .report-card-desc {
+  color: var(--muted);
+  font-size: 0.85rem;
+}

@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Bilanz – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Bilanz</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr" onchange="this.form.submit()">
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if selected_fiscal_year.id == fy.id %}selected{% endif %}>{{ fy }}{% if fy.is_closed %} (abgeschlossen){% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if data %}
+<p class="muted">Stichtag: {{ selected_fiscal_year.end_date }}</p>
+
+<h2>Aktiven</h2>
+<table>
+  <tbody>
+    {% for row in data.aktiva_rows %}
+    <tr>
+      <td>{{ row.account.code }} {{ row.account.name }}</td>
+      <td class="text-right">{{ row.balance }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="2" class="muted">Keine Aktiven mit Saldo.</td></tr>
+    {% endfor %}
+    <tr class="total-row"><td>Total Aktiven</td><td class="text-right">{{ data.total_aktiva }}</td></tr>
+  </tbody>
+</table>
+
+<h2>Passiven</h2>
+<table>
+  <tbody>
+    {% for row in data.passiva_rows %}
+    <tr>
+      <td>{{ row.account.code }} {{ row.account.name }}</td>
+      <td class="text-right">{{ row.balance }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="2" class="muted">Keine Passiven mit Saldo.</td></tr>
+    {% endfor %}
+    <tr>
+      <td>Jahresgewinn / -verlust (aus Erfolgsrechnung)</td>
+      <td class="text-right">{{ data.jahreserfolg }}</td>
+    </tr>
+    <tr class="total-row"><td>Total Passiven</td><td class="text-right">{{ data.total_passiva_mit_erfolg }}</td></tr>
+  </tbody>
+</table>
+
+{% if data.balanced %}
+<p class="muted">Bilanz ist ausgeglichen (Total Aktiven = Total Passiven).</p>
+{% else %}
+<p class="muted" style="color: var(--accent-error);">Achtung: Bilanz ist nicht ausgeglichen. Total Aktiven {{ data.total_aktiva }} ≠ Total Passiven {{ data.total_passiva_mit_erfolg }}.</p>
+{% endif %}
+{% else %}
+<p class="muted">Kein Geschäftsjahr ausgewählt.</p>
+{% endif %}
+{% endblock %}

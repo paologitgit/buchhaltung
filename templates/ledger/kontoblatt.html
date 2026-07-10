@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Kontoblatt – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Kontoblatt</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr" onchange="this.form.submit()">
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if selected_fiscal_year.id == fy.id %}selected{% endif %}>{{ fy }}{% if fy.is_closed %} (abgeschlossen){% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label for="konto">Konto</label>
+    <select name="konto" id="konto" onchange="this.form.submit()">
+      {% for a in accounts %}
+      <option value="{{ a.id }}" {% if selected_account.id == a.id %}selected{% endif %}>{{ a.code }} {{ a.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if data %}
+<p class="muted">Periode: {{ selected_fiscal_year.start_date }} – {{ selected_fiscal_year.end_date }}</p>
+
+<div class="stat-grid">
+  <div class="stat">
+    <div class="value">{{ data.opening_balance }}</div>
+    <div class="label">Eröffnungssaldo</div>
+  </div>
+  <div class="stat">
+    <div class="value">{{ data.closing_balance }}</div>
+    <div class="label">Schlusssaldo</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>
+      <th>Datum</th>
+      <th>Text</th>
+      <th>Gegenkonto(en)</th>
+      <th class="text-right">Soll</th>
+      <th class="text-right">Haben</th>
+      <th class="text-right">Saldo</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td colspan="5" class="muted">Eröffnungssaldo</td>
+      <td class="text-right">{{ data.opening_balance }}</td>
+    </tr>
+    {% for entry in data.entries %}
+    <tr>
+      <td>{{ entry.line.journal_entry.date }}</td>
+      <td>{{ entry.line.journal_entry.description }}</td>
+      <td>
+        {% for other in entry.line.journal_entry.lines.all %}
+          {% if other.account_id != data.account.id %}{{ other.account.code }}{% if not forloop.last %}, {% endif %}{% endif %}
+        {% endfor %}
+      </td>
+      <td class="text-right">{{ entry.line.debit_amount|default_if_none:"" }}</td>
+      <td class="text-right">{{ entry.line.credit_amount|default_if_none:"" }}</td>
+      <td class="text-right">{{ entry.running_balance }}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="6" class="muted">Keine Buchungen für dieses Konto in dieser Periode.</td></tr>
+    {% endfor %}
+    <tr class="total-row">
+      <td colspan="5">Schlusssaldo</td>
+      <td class="text-right">{{ data.closing_balance }}</td>
+    </tr>
+  </tbody>
+</table>
+{% else %}
+<p class="muted">Bitte Geschäftsjahr und Konto auswählen.</p>
+{% endif %}
+{% endblock %}

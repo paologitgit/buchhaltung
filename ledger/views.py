@@ -11,6 +11,18 @@ from .analytics import build_income_expense_chart, monthly_income_expense, top_e
 from .export import export_journal_csv, export_journal_xlsx, export_journal_zip
 from .forms import FiscalYearForm
 from .models import Account, FiscalYear, JournalEntry
+from .reports import bilanz, erfolgsrechnung, kontoblatt, saldobilanz
+
+
+def _resolve_fiscal_year(request):
+    fiscal_years = FiscalYear.objects.all()
+    fiscal_year_id = request.GET.get("geschaeftsjahr")
+    fiscal_year = None
+    if fiscal_year_id:
+        fiscal_year = fiscal_years.filter(pk=fiscal_year_id).first()
+    elif fiscal_years.exists():
+        fiscal_year = fiscal_years.filter(is_closed=False).order_by("-start_date").first() or fiscal_years.first()
+    return fiscal_years, fiscal_year
 
 
 @login_required
@@ -21,13 +33,7 @@ def account_list(request):
 
 @login_required
 def auswertung(request):
-    fiscal_years = FiscalYear.objects.all()
-    fiscal_year_id = request.GET.get("geschaeftsjahr")
-    fiscal_year = None
-    if fiscal_year_id:
-        fiscal_year = fiscal_years.filter(pk=fiscal_year_id).first()
-    elif fiscal_years.exists():
-        fiscal_year = fiscal_years.filter(is_closed=False).order_by("-start_date").first() or fiscal_years.first()
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
 
     monthly_data = monthly_income_expense(fiscal_year)
     chart = build_income_expense_chart(monthly_data) if monthly_data else None
@@ -103,3 +109,70 @@ def fiscal_year_close(request, pk):
         messages.success(request, "Geschäftsjahr wurde abgeschlossen und gesperrt.")
         return redirect("fiscal_year_list")
     return render(request, "ledger/fiscal_year_close_confirm.html", {"fiscal_year": fiscal_year})
+
+
+@login_required
+def berichte(request):
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
+    return render(
+        request,
+        "ledger/berichte.html",
+        {"fiscal_years": fiscal_years, "selected_fiscal_year": fiscal_year},
+    )
+
+
+@login_required
+def bericht_bilanz(request):
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
+    data = bilanz(fiscal_year) if fiscal_year else None
+    return render(
+        request,
+        "ledger/bilanz.html",
+        {"fiscal_years": fiscal_years, "selected_fiscal_year": fiscal_year, "data": data},
+    )
+
+
+@login_required
+def bericht_erfolgsrechnung(request):
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
+    data = erfolgsrechnung(fiscal_year) if fiscal_year else None
+    return render(
+        request,
+        "ledger/erfolgsrechnung.html",
+        {"fiscal_years": fiscal_years, "selected_fiscal_year": fiscal_year, "data": data},
+    )
+
+
+@login_required
+def bericht_saldobilanz(request):
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
+    data = saldobilanz(fiscal_year) if fiscal_year else None
+    return render(
+        request,
+        "ledger/saldobilanz.html",
+        {"fiscal_years": fiscal_years, "selected_fiscal_year": fiscal_year, "data": data},
+    )
+
+
+@login_required
+def bericht_kontoblatt(request):
+    fiscal_years, fiscal_year = _resolve_fiscal_year(request)
+    accounts = Account.objects.all()
+    account = None
+    account_id = request.GET.get("konto")
+    if account_id:
+        account = accounts.filter(pk=account_id).first()
+    elif accounts.exists():
+        account = accounts.first()
+    data = kontoblatt(account, fiscal_year) if (account and fiscal_year) else None
+    return render(
+        request,
+        "ledger/kontoblatt.html",
+        {
+            "fiscal_years": fiscal_years,
+            "selected_fiscal_year": fiscal_year,
+            "accounts": accounts,
+            "selected_account": account,
+            "data": data,
+        },
+    )

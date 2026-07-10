@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Berichte – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Berichte</h1>
+
+<form method="get" class="filters">
+  <div>
+    <label for="geschaeftsjahr">Geschäftsjahr</label>
+    <select name="geschaeftsjahr" id="geschaeftsjahr" onchange="this.form.submit()">
+      {% for fy in fiscal_years %}
+      <option value="{{ fy.id }}" {% if selected_fiscal_year.id == fy.id %}selected{% endif %}>{{ fy }}{% if fy.is_closed %} (abgeschlossen){% endif %}</option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+{% if selected_fiscal_year %}
+<div class="report-cards">
+  <a class="report-card" href="{% url 'bericht_bilanz' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">
+    <div class="report-card-title">Bilanz</div>
+    <div class="report-card-desc">Aktiven und Passiven per Ende Geschäftsjahr.</div>
+  </a>
+  <a class="report-card" href="{% url 'bericht_erfolgsrechnung' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">
+    <div class="report-card-title">Erfolgsrechnung</div>
+    <div class="report-card-desc">Aufwand und Ertrag der Periode, Jahresgewinn/-verlust.</div>
+  </a>
+  <a class="report-card" href="{% url 'bericht_saldobilanz' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">
+    <div class="report-card-title">Saldobilanz</div>
+    <div class="report-card-desc">Eröffnungssaldo, Bewegungen und Schlusssaldo je Konto.</div>
+  </a>
+  <a class="report-card" href="{% url 'bericht_kontoblatt' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">
+    <div class="report-card-title">Kontoblätter</div>
+    <div class="report-card-desc">Alle Buchungen eines einzelnen Kontos mit laufendem Saldo.</div>
+  </a>
+</div>
+{% else %}
+<p class="muted">Noch kein Geschäftsjahr vorhanden. Lege zuerst eines an.</p>
+{% endif %}
+{% endblock %}

@@ -18,6 +18,7 @@
       {% if user.has_write_access %}<a href="{% url 'posteingang_list' %}">Posteingang</a>{% endif %}
       {% if user.has_write_access %}<a href="{% url 'statement_scan_upload' %}">Abrechnung scannen</a>{% endif %}
       <a href="{% url 'journal_list' %}">Journal</a>
+      <a href="{% url 'berichte' %}">Berichte</a>
       <a href="{% url 'account_list' %}">Kontenplan</a>
       <a href="{% url 'fiscal_year_list' %}">Geschäftsjahre</a>
       {% if user.has_write_access %}<a href="{% url 'backup_list' %}">Backup</a>{% endif %}
