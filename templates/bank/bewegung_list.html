@@ -97,6 +97,7 @@
       {% endfor %}
     </select>
   </div>
+  {% if company_settings.mwst_pflichtig %}
   <div>
     <label for="bulk-vat-code">MWST-Code</label>
     <select name="vat_code" id="bulk-vat-code" form="bulk-form">
@@ -106,6 +107,7 @@
       {% endfor %}
     </select>
   </div>
+  {% endif %}
   <div>
     <button type="submit" form="bulk-form" formaction="{% url 'bewegung_bulk_book' %}" class="btn">Ausgewählte verbuchen</button>
     <button type="submit" form="bulk-form" formaction="{% url 'bewegung_bulk_delete' %}" class="btn danger"

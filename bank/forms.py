@@ -29,3 +29,10 @@ class BewegungBookingForm(forms.Form):
     vat_code = forms.ModelChoiceField(
         queryset=VatCode.objects.filter(active=True), required=False, label="MWST-Code"
     )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from core.models import CompanySettings
+
+        if not CompanySettings.load().mwst_pflichtig:
+            del self.fields["vat_code"]

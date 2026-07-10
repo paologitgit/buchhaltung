@@ -21,6 +21,7 @@
       <a href="{% url 'account_list' %}">Kontenplan</a>
       <a href="{% url 'fiscal_year_list' %}">Geschäftsjahre</a>
       {% if user.has_write_access %}<a href="{% url 'backup_list' %}">Backup</a>{% endif %}
+      {% if user.has_write_access %}<a href="{% url 'admin:core_companysettings_change' 1 %}">Einstellungen</a>{% endif %}
       <span class="user">{{ user.username }} ({{ user.get_role_display }})</span>
       <a href="{% url 'password_change' %}">Passwort</a>
       <form action="{% url 'logout' %}" method="post" style="display:inline; margin:0;">

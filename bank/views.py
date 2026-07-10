@@ -125,7 +125,7 @@ def bewegung_detail(request, pk):
                     book_bewegung(
                         bewegung,
                         gegenkonto=booking_form.cleaned_data["gegenkonto"],
-                        vat_code=booking_form.cleaned_data["vat_code"],
+                        vat_code=booking_form.cleaned_data.get("vat_code"),
                         user=request.user,
                     )
                     messages.success(request, "Bewegung wurde verbucht.")
