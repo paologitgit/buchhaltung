@@ -24,6 +24,9 @@ _MANY_NEWLINES_RE = re.compile(r"\n{3,}")
 
 
 def _clean_text(text):
+    # NUL-Bytes kommen in manchen PDF-Textebenen vor; PostgreSQL lehnt sie
+    # in Textfeldern ab (DataError: cannot contain NUL bytes).
+    text = text.replace("\x00", "")
     text = _WHITESPACE_RE.sub(" ", text)
     text = "\n".join(line.strip() for line in text.splitlines())
     text = _MANY_NEWLINES_RE.sub("\n\n", text)

@@ -26,10 +26,15 @@ class Command(BaseCommand):
         total = belege.count()
         done = 0
         empty = 0
+        failed = []
         self.stdout.write(f"{total} Beleg(e) zu verarbeiten ...")
 
         for beleg in belege.iterator():
-            text = update_extracted_text(beleg)
+            try:
+                text = update_extracted_text(beleg)
+            except Exception as exc:
+                failed.append(f"#{beleg.pk} {beleg.original_filename}: {exc}")
+                continue
             done += 1
             if not text:
                 empty += 1
@@ -41,3 +46,5 @@ class Command(BaseCommand):
                 f"Fertig: {done} Beleg(e) verarbeitet, davon {empty} ohne erkennbaren Text."
             )
         )
+        for line in failed:
+            self.stdout.write(self.style.ERROR(f"Fehlgeschlagen: {line}"))
