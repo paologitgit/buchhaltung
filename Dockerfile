@@ -6,6 +6,7 @@ WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev gcc postgresql-client curl unzip \
+    tesseract-ocr tesseract-ocr-deu \
     && curl -fsSL https://rclone.org/install.sh | bash \
     && apt-get purge -y curl unzip \
     && apt-get autoremove -y \

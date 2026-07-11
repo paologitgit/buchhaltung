@@ -22,6 +22,7 @@ from .matching import _amount_range_filter, bewegungen_matching_amount, find_mat
 from .models import Beleg
 from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
 from .statement_parser import parse_statement
+from .text_extraction import update_extracted_text
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +42,24 @@ def _redirect_after_beleg_action(beleg):
     return redirect("posteingang_list")
 
 
+def _beleg_search_q(search):
+    """Volltextsuche über Dateiname, Notiz, Bewegungstext und den aus dem
+    Dokument extrahierten Text. Beträge werden tolerant behandelt: "47.20"
+    findet auch "47,20", Tausender-Apostrophe im Suchbegriff werden ignoriert."""
+    search = search.strip()
+    variants = {search, search.replace("'", "")}
+    if any(ch.isdigit() for ch in search):
+        for variant in list(variants):
+            variants.add(variant.replace(",", "."))
+            variants.add(variant.replace(".", ","))
+
+    q = Q()
+    for variant in variants:
+        for field in ("original_filename", "note", "bewegung__description", "extracted_text"):
+            q |= Q(**{f"{field}__icontains": variant})
+    return q
+
+
 @login_required
 def beleg_list(request):
     belege = Beleg.objects.select_related(
@@ -57,11 +76,7 @@ def beleg_list(request):
 
     search = request.GET.get("q")
     if search:
-        belege = belege.filter(
-            Q(original_filename__icontains=search)
-            | Q(note__icontains=search)
-            | Q(bewegung__description__icontains=search)
-        )
+        belege = belege.filter(_beleg_search_q(search))
 
     date_from = request.GET.get("von")
     if date_from:
@@ -164,6 +179,7 @@ def beleg_upload(request, bewegung_id):
                 beleg.content_type = getattr(uploaded, "content_type", "") or ""
                 beleg.size_bytes = uploaded.size
                 beleg.save()
+                update_extracted_text(beleg)
                 uploaded_count += 1
             else:
                 failed.append(uploaded.name)
@@ -270,6 +286,7 @@ def posteingang_upload(request):
             if match:
                 beleg.bewegung = match
                 beleg.save()
+                update_extracted_text(beleg)
                 messages.success(
                     request,
                     f"Automatisch zugewiesen: Bewegung vom {match.booking_date:%d.%m.%Y} "
@@ -278,6 +295,7 @@ def posteingang_upload(request):
                 return redirect("bewegung_detail", pk=match.pk)
             beleg.bewegung = None
             beleg.save()
+            update_extracted_text(beleg)
             messages.info(request, "Kein eindeutiger Treffer gefunden – Beleg liegt im Posteingang.")
             return redirect("posteingang_list")
         for error in form.errors.get("file", []):
@@ -310,6 +328,7 @@ def posteingang_bulk_upload(request):
                 beleg.content_type = getattr(uploaded_file, "content_type", "") or ""
                 beleg.size_bytes = uploaded_file.size
                 beleg.save()
+                update_extracted_text(beleg)
                 created += 1
             else:
                 failed.append(uploaded_file.name)
@@ -392,6 +411,7 @@ def beleg_copy(request, pk):
             size_bytes=len(file_bytes),
             note=beleg.note or f"Kopie von Beleg #{beleg.pk}",
             source=beleg.source or beleg,
+            extracted_text=beleg.extracted_text,
         )
         copy.file.save(beleg.original_filename, ContentFile(file_bytes), save=False)
         copy.save()
@@ -617,6 +637,9 @@ def statement_scan_review(request):
         confirmed = 0
         created_bewegungen = 0
         bank_account_id = data.get("bank_account_id")
+        # Alle bestätigten Zeilen erhalten dieselbe PDF -- Text nur einmal
+        # extrahieren (beim ersten erstellten Beleg) und wiederverwenden.
+        shared_extracted_text = None
         for row in data["rows"]:
             bewegung_id = request.POST.get(f"bewegung_{row['index']}")
             bewegung = None
@@ -644,6 +667,11 @@ def statement_scan_review(request):
             )
             beleg.file.save(data["original_filename"], ContentFile(file_bytes), save=False)
             beleg.save()
+            if shared_extracted_text is None:
+                shared_extracted_text = update_extracted_text(beleg)
+            else:
+                beleg.extracted_text = shared_extracted_text
+                beleg.save(update_fields=["extracted_text"])
             confirmed += 1
 
         if default_storage.exists(data["file_path"]):

@@ -36,6 +36,12 @@ class Beleg(models.Model):
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=255, blank=True)
+    extracted_text = models.TextField(
+        blank=True,
+        default="",
+        verbose_name="Erkannter Text",
+        help_text="Beim Hochladen automatisch aus dem Dokument extrahierter Text (PDF-Text oder OCR), für die Volltextsuche.",
+    )
     source = models.ForeignKey(
         "self",
         on_delete=models.SET_NULL,
