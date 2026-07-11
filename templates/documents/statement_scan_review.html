@@ -2,10 +2,12 @@
 {% block title %}Abrechnung prüfen – Buchhaltung{% endblock %}
 {% block content %}
 <h1>Erkannte Positionen prüfen</h1>
-<p class="muted">
+<p class=”muted”>
   Pro Position ist der wahrscheinlichste Treffer vorausgewählt. Prüfe kurz, wähle bei
-  Bedarf eine andere Bewegung oder „überspringen“, und speichere dann. Die Abrechnung wird
-  als Bankbeleg an jede bestätigte Bewegung angehängt.
+  Bedarf eine andere Bewegung oder „überspringen”, und speichere dann. Die Abrechnung wird
+  als Bankbeleg an jede bestätigte Bewegung angehängt. Wurde keine passende Bewegung
+  gefunden, kannst du direkt eine neue erstellen (Datum/Text/Betrag lassen sich vor dem
+  Speichern noch anpassen).
 </p>
 <form method="post">
   {% csrf_token %}
@@ -31,6 +33,15 @@
             </label>
           {% else %}
             <span class="muted">keine passende Bewegung gefunden</span>
+            <label style="display:block; margin-top:0.4rem;">
+              <input type="checkbox" name="neu_{{ row.index }}" value="1">
+              Neue Bewegung erstellen
+            </label>
+            <div class="statement-new-row">
+              <input type="date" name="neu_datum_{{ row.index }}" value="{{ row.date }}">
+              <input type="text" class="text" name="neu_text_{{ row.index }}" value="{{ row.description }}">
+              <input type="text" class="amount" name="neu_betrag_{{ row.index }}" value="{{ row.amount }}">
+            </div>
           {% endif %}
         </td>
       </tr>

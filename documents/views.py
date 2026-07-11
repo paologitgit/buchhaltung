@@ -1,5 +1,6 @@
 import logging
 import uuid
+from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -13,6 +14,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.http import url_has_allowed_host_and_scheme
 
 from bank.models import BankAccount, Bewegung
+from bank.services import _compute_hash
 from core.decorators import owner_required
 
 from .forms import BelegUploadForm, PosteingangBulkUploadForm, PosteingangUploadForm
@@ -461,12 +463,53 @@ def statement_scan_upload(request):
         request.session[SESSION_KEY_STATEMENT_SCAN] = {
             "file_path": temp_path,
             "original_filename": uploaded.name,
+            "bank_account_id": bank_account_id,
             "rows": rows,
         }
         return redirect("statement_scan_review")
 
     bank_accounts = BankAccount.objects.filter(is_active=True)
     return render(request, "documents/statement_scan_upload.html", {"bank_accounts": bank_accounts})
+
+
+def _create_bewegung_from_statement_row(request, row, bank_account_id):
+    """Legt für eine erkannte Position ohne passende Bewegung eine neue
+    Bewegung auf dem gescannten Bankkonto an (Datum/Text/Betrag vom
+    Formular, mit den erkannten Werten als Fallback). Kreditkarten-Positionen
+    sind Ausgaben, Bewegung.amount ist vorzeichenbehaftet (Ausgang negativ)."""
+    bank_account = BankAccount.objects.filter(pk=bank_account_id).first()
+    if not bank_account:
+        return None
+
+    try:
+        booking_date = date.fromisoformat(request.POST.get(f"neu_datum_{row['index']}", ""))
+    except ValueError:
+        booking_date = date.fromisoformat(row["date"])
+
+    description = (request.POST.get(f"neu_text_{row['index']}") or row["description"]).strip()
+    if not description:
+        return None
+
+    try:
+        amount = Decimal(request.POST.get(f"neu_betrag_{row['index']}", "").replace("'", "").replace(",", "."))
+    except InvalidOperation:
+        amount = Decimal(row["amount"])
+    if amount > 0:
+        amount = -amount
+
+    dedup_hash = _compute_hash(bank_account.id, booking_date, amount, description)
+    bewegung, _ = Bewegung.objects.get_or_create(
+        dedup_hash=dedup_hash,
+        defaults=dict(
+            bank_account=bank_account,
+            booking_date=booking_date,
+            amount=amount,
+            currency=bank_account.currency,
+            description=description,
+            source=Bewegung.Source.MANUAL,
+        ),
+    )
+    return bewegung
 
 
 @login_required
@@ -479,13 +522,19 @@ def statement_scan_review(request):
 
     if request.method == "POST":
         confirmed = 0
+        created_bewegungen = 0
+        bank_account_id = data.get("bank_account_id")
         for row in data["rows"]:
             bewegung_id = request.POST.get(f"bewegung_{row['index']}")
-            if not bewegung_id:
-                continue
-            try:
-                bewegung = Bewegung.objects.get(pk=bewegung_id)
-            except Bewegung.DoesNotExist:
+            bewegung = None
+            if bewegung_id:
+                bewegung = Bewegung.objects.filter(pk=bewegung_id).first()
+            elif request.POST.get(f"neu_{row['index']}") and bank_account_id:
+                bewegung = _create_bewegung_from_statement_row(request, row, bank_account_id)
+                if bewegung:
+                    created_bewegungen += 1
+
+            if not bewegung:
                 continue
 
             with default_storage.open(data["file_path"], "rb") as f:
@@ -509,7 +558,10 @@ def statement_scan_review(request):
         del request.session[SESSION_KEY_STATEMENT_SCAN]
 
         if confirmed:
-            messages.success(request, f"{confirmed} Beleg(e) zugewiesen.")
+            message = f"{confirmed} Beleg(e) zugewiesen."
+            if created_bewegungen:
+                message += f" Davon {created_bewegungen} neue Bewegung(en) erstellt."
+            messages.success(request, message)
         else:
             messages.info(request, "Keine Zuordnung bestätigt.")
         return redirect("posteingang_list")

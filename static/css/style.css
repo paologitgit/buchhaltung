@@ -354,6 +354,26 @@ button:hover, .btn:hover {
   padding: 0.25rem;
 }
 
+.statement-new-row {
+  display: flex;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+}
+
+.statement-new-row input[type="date"] {
+  width: auto;
+}
+
+.statement-new-row input.amount {
+  width: 90px;
+}
+
+.statement-new-row input.text {
+  flex: 1;
+  min-width: 140px;
+  width: auto;
+}
+
 .chart-legend {
   display: flex;
   gap: 1.25rem;
