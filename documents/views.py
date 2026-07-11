@@ -1,6 +1,6 @@
 import logging
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal, InvalidOperation
 
 from django.contrib import messages
@@ -18,7 +18,7 @@ from bank.services import _compute_hash
 from core.decorators import owner_required
 
 from .forms import BelegUploadForm, PosteingangBulkUploadForm, PosteingangUploadForm
-from .matching import bewegungen_matching_amount, find_matching_bewegung
+from .matching import _amount_range_filter, bewegungen_matching_amount, find_matching_bewegung
 from .models import Beleg
 from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
 from .statement_parser import parse_statement
@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 # jede Vorschau wird beim ersten Abruf serverseitig gerendert (PDF -> PNG),
 # zu viele auf einmal überlasten die wenigen gunicorn-Worker (WORKER TIMEOUT).
 BELEG_LIST_PAGE_SIZE = 40
+
+# Vorbelegter Zeitraum (in Tagen vor/nach dem Anker-Datum) für die
+# Bewegungssuche beim Anhängen eines Belegs an eine weitere Bewegung.
+BELEG_COPY_DATE_WINDOW_DAYS = 15
 
 
 def _redirect_after_beleg_action(beleg):
@@ -360,35 +364,87 @@ def beleg_copy(request, pk):
         )
         return redirect("bewegung_detail", pk=bewegung.pk)
 
-    query = request.GET.get("q", "")
-    amount_query = request.GET.get("betrag", "")
+    has_explicit_filters = any(key in request.GET for key in ("betrag", "von", "bis", "q"))
+
+    anchor_amount = beleg.expected_amount or (abs(beleg.bewegung.amount) if beleg.bewegung_id else None)
+    anchor_date = beleg.expected_date or (beleg.bewegung.booking_date if beleg.bewegung_id else None)
+
+    if has_explicit_filters:
+        query = request.GET.get("q", "")
+        amount_query = request.GET.get("betrag", "")
+        von_raw = request.GET.get("von", "")
+        bis_raw = request.GET.get("bis", "")
+    else:
+        # Erstaufruf ohne eigene Suche: Betrag/Zeitraum anhand des Belegs bzw.
+        # der aktuell zugewiesenen Bewegung vorschlagen (z.B. bei einer
+        # Kreditkarten-Abrechnung, die schon einer Bewegung zugewiesen ist).
+        query = ""
+        amount_query = str(anchor_amount) if anchor_amount else ""
+        if anchor_date:
+            von_raw = (anchor_date - timedelta(days=BELEG_COPY_DATE_WINDOW_DAYS)).isoformat()
+            bis_raw = (anchor_date + timedelta(days=BELEG_COPY_DATE_WINDOW_DAYS)).isoformat()
+        else:
+            von_raw = ""
+            bis_raw = ""
 
     matches = Bewegung.objects.select_related("bank_account").exclude(pk=beleg.bewegung_id)
+
     amount_error = None
+    amount_value = None
     if amount_query:
         try:
-            matches = bewegungen_matching_amount(Decimal(amount_query.replace(",", "."))).exclude(
-                pk=beleg.bewegung_id
-            ).select_related("bank_account")
+            amount_value = Decimal(amount_query.replace("'", "").replace(",", "."))
+            matches = matches.filter(_amount_range_filter(amount_value))
         except InvalidOperation:
             amount_error = "Ungültiger Betrag."
-    elif query:
-        matches = matches.filter(description__icontains=query)
-    elif beleg.expected_amount:
-        matches = bewegungen_matching_amount(beleg.expected_amount).exclude(
-            pk=beleg.bewegung_id
-        ).select_related("bank_account")
 
-    if query and amount_query and not amount_error:
+    if query:
         matches = matches.filter(description__icontains=query)
 
-    matches = matches.order_by("-booking_date")[:30]
+    date_error = None
+    von_date = None
+    bis_date = None
+    if von_raw:
+        try:
+            von_date = date.fromisoformat(von_raw)
+            matches = matches.filter(booking_date__gte=von_date)
+        except ValueError:
+            date_error = "Ungültiges Von-Datum."
+    if bis_raw:
+        try:
+            bis_date = date.fromisoformat(bis_raw)
+            matches = matches.filter(booking_date__lte=bis_date)
+        except ValueError:
+            date_error = "Ungültiges Bis-Datum."
+
+    if von_date and bis_date:
+        sort_anchor_date = von_date + (bis_date - von_date) / 2
+    else:
+        sort_anchor_date = von_date or bis_date or anchor_date
+
+    matches = list(matches.order_by("-booking_date")[:200])
+    for b in matches:
+        b.amount_diff = abs(abs(b.amount) - amount_value) if amount_value is not None else None
+        b.date_diff = abs((b.booking_date - sort_anchor_date).days) if sort_anchor_date else None
+
+    matches.sort(
+        key=lambda b: (
+            b.amount_diff if b.amount_diff is not None else Decimal("0"),
+            b.date_diff if b.date_diff is not None else 0,
+            -b.booking_date.toordinal(),
+        )
+    )
+    matches = matches[:30]
+
     context = {
         "beleg": beleg,
         "matches": matches,
         "query": query,
         "amount_query": amount_query,
         "amount_error": amount_error,
+        "von": von_raw,
+        "bis": bis_raw,
+        "date_error": date_error,
     }
     return render(request, "documents/beleg_copy.html", context)
 

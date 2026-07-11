@@ -14,19 +14,29 @@
 
 <form method="get" class="filters">
   <div>
-    <label for="q">Bewegung suchen (Text)</label>
-    <input type="text" name="q" id="q" value="{{ query }}" placeholder="z.B. Migros, Buchli...">
+    <label for="betrag">Betrag</label>
+    <input type="text" name="betrag" id="betrag" value="{{ amount_query }}" placeholder="z.B. 47.20">
   </div>
   <div>
-    <label for="betrag">oder nach Betrag</label>
-    <input type="text" name="betrag" id="betrag" value="{{ amount_query }}" placeholder="z.B. 47.20">
+    <label for="von">Zeitraum von</label>
+    <input type="date" name="von" id="von" value="{{ von }}">
+  </div>
+  <div>
+    <label for="bis">bis</label>
+    <input type="date" name="bis" id="bis" value="{{ bis }}">
+  </div>
+  <div>
+    <label for="q">Text</label>
+    <input type="text" name="q" id="q" value="{{ query }}" placeholder="z.B. Migros, Buchli...">
   </div>
   <div><button type="submit">Suchen</button></div>
 </form>
 {% if amount_error %}<p class="errorlist">{{ amount_error }}</p>{% endif %}
+{% if date_error %}<p class="errorlist">{{ date_error }}</p>{% endif %}
+<p class="muted">Betrag und Zeitraum lassen sich kombinieren – Treffer mit möglichst genauem Betrag und Datum stehen zuoberst.</p>
 
 <table>
-  <thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Status</th><th></th></tr></thead>
+  <thead><tr><th>Datum</th><th>Beschreibung</th><th>Betrag</th><th>Status</th><th>Abweichung</th><th></th></tr></thead>
   <tbody>
     {% for b in matches %}
     <tr>
@@ -34,6 +44,11 @@
       <td>{{ b.description|truncatechars:60 }}</td>
       <td>{{ b.amount }} {{ b.currency }}</td>
       <td>{{ b.get_status_display }}</td>
+      <td class="muted">
+        {% if b.amount_diff is not None %}{% if b.amount_diff == 0 %}exakter Betrag{% else %}Betrag Δ {{ b.amount_diff }}{% endif %}{% endif %}
+        {% if b.amount_diff is not None and b.date_diff is not None %}, {% endif %}
+        {% if b.date_diff is not None %}{% if b.date_diff == 0 %}exaktes Datum{% else %}{{ b.date_diff }} Tag{{ b.date_diff|pluralize }} Abstand{% endif %}{% endif %}
+      </td>
       <td>
         <form method="post">
           {% csrf_token %}
@@ -43,7 +58,7 @@
       </td>
     </tr>
     {% empty %}
-    <tr><td colspan="5" class="muted">Keine passenden Bewegungen gefunden. Versuch es mit einer Textsuche.</td></tr>
+    <tr><td colspan="6" class="muted">Keine passenden Bewegungen gefunden. Versuch es mit einer Textsuche oder anderem Zeitraum.</td></tr>
     {% endfor %}
   </tbody>
 </table>
