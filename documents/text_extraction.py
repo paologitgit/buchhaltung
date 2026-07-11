@@ -22,11 +22,43 @@ OCR_LANGUAGES = "deu+eng"
 _WHITESPACE_RE = re.compile(r"[ \t]+")
 _MANY_NEWLINES_RE = re.compile(r"\n{3,}")
 
+# Manche PDF-Generatoren (z.B. Stripe-Rechnungen/Belege wie "Receipt-...pdf")
+# platzieren jeden Buchstaben einzeln für exaktes Kerning. pypdf fügt dann
+# zwischen jedem Zeichen ein Leerzeichen ein ("R e c e i p t" statt
+# "Receipt"), was den Text für die Substring-Suche unbrauchbar macht.
+_LETTER_SPACED_RUN_RE = re.compile(r"(?:\b\w\b[ ]){2,}\b\w\b")
+# Zusätzlich Dezimalbeträge wie "4 7 . 2 0" -> "47.20" -- werden vom obigen
+# Muster nicht erfasst, da der Punkt/Komma die Wortgrenze unterbricht.
+_SPACED_AMOUNT_RE = re.compile(r"\d(?:[ ]\d)*(?:[ ]?[.,][ ]?\d(?:[ ]\d)*)+")
+_LETTER_SPACING_MIN_RATIO = 0.4
+_LETTER_SPACING_MIN_TOKENS = 10
+
+
+def _looks_letter_spaced(text):
+    tokens = text.split()
+    if len(tokens) < _LETTER_SPACING_MIN_TOKENS:
+        return False
+    single_char = sum(1 for t in tokens if len(t) == 1)
+    return (single_char / len(tokens)) >= _LETTER_SPACING_MIN_RATIO
+
+
+def _squash_spaces(match):
+    return match.group(0).replace(" ", "")
+
+
+def _collapse_letter_spacing(text):
+    if not _looks_letter_spaced(text):
+        return text
+    text = _LETTER_SPACED_RUN_RE.sub(_squash_spaces, text)
+    text = _SPACED_AMOUNT_RE.sub(_squash_spaces, text)
+    return text
+
 
 def _clean_text(text):
     # NUL-Bytes kommen in manchen PDF-Textebenen vor; PostgreSQL lehnt sie
     # in Textfeldern ab (DataError: cannot contain NUL bytes).
     text = text.replace("\x00", "")
+    text = _collapse_letter_spacing(text)
     text = _WHITESPACE_RE.sub(" ", text)
     text = "\n".join(line.strip() for line in text.splitlines())
     text = _MANY_NEWLINES_RE.sub("\n\n", text)
