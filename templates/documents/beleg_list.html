@@ -43,7 +43,7 @@
 <ul class="beleg-list">
   {% for beleg in belege %}
   <li class="beleg-item">
-    <div class="beleg-preview small">
+    <div class="beleg-preview">
       <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
         <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}" loading="lazy">
       </a>
