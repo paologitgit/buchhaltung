@@ -40,6 +40,9 @@
   <div>
     <label><input type="checkbox" name="fehlender_bankbeleg" value="1" {% if filters.fehlender_bankbeleg == "1" %}checked{% endif %}> fehlender Bankbeleg ({{ missing_bankbeleg_count }})</label>
   </div>
+  <div>
+    <label><input type="checkbox" name="gruppieren" value="1" {% if filters.gruppieren == "1" %}checked{% endif %}> nach Gruppen sortieren (gleicher Buchungstext, mehr als {{ group_min_count|default:5 }}x)</label>
+  </div>
   <div><button type="submit">Filtern</button></div>
 </form>
 
@@ -61,28 +64,24 @@
     </tr>
   </thead>
   <tbody>
-    {% for b in bewegungen %}
-    <tr>
-      {% if user.has_write_access %}
-      <td>{% if b.status != "BOOKED" %}<input type="checkbox" name="selected" value="{{ b.pk }}" class="bewegung-checkbox" form="bulk-form">{% endif %}</td>
+    {% if group_by %}
+      {% for group in groups %}
+      <tr class="group-header"><td colspan="8"><strong>{{ group.label|truncatechars:80 }}</strong> <span class="muted">({{ group.count }})</span></td></tr>
+      {% for b in group.items %}{% include "bank/_bewegung_row.html" %}{% endfor %}
+      {% endfor %}
+      {% if groups and ungrouped %}
+      <tr class="group-header"><td colspan="8"><strong>Weitere Bewegungen</strong></td></tr>
       {% endif %}
-      <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.booking_date }}</a></td>
-      <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
-      <td>{{ b.amount }} {{ b.currency }}</td>
-      <td>{{ b.bank_account.name }}</td>
-      <td>{{ b.get_status_display }}</td>
-      <td>
-        {% if not b.quittung_erforderlich %}<span class="badge">nicht nötig</span>
-        {% elif b.has_quittung %}<span class="badge ok">vorhanden</span>
-        {% else %}<span class="badge missing">fehlt</span>{% endif %}
-      </td>
-      <td>
-        {% if b.has_bankbeleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
-      </td>
-    </tr>
-    {% empty %}
-    <tr><td colspan="8" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
-    {% endfor %}
+      {% for b in ungrouped %}{% include "bank/_bewegung_row.html" %}{% endfor %}
+      {% if not groups and not ungrouped %}
+      <tr><td colspan="8" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
+      {% endif %}
+    {% else %}
+      {% for b in bewegungen %}{% include "bank/_bewegung_row.html" %}
+      {% empty %}
+      <tr><td colspan="8" class="muted">Keine Bewegungen gefunden. Importiere zuerst eine CSV-Datei.</td></tr>
+      {% endfor %}
+    {% endif %}
   </tbody>
 </table>
 {% if user.has_write_access %}

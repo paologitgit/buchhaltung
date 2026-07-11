@@ -1,0 +1,18 @@
+<tr>
+  {% if user.has_write_access %}
+  <td>{% if b.status != "BOOKED" %}<input type="checkbox" name="selected" value="{{ b.pk }}" class="bewegung-checkbox" form="bulk-form">{% endif %}</td>
+  {% endif %}
+  <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.booking_date }}</a></td>
+  <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
+  <td>{{ b.amount }} {{ b.currency }}</td>
+  <td>{{ b.bank_account.name }}</td>
+  <td>{{ b.get_status_display }}</td>
+  <td>
+    {% if not b.quittung_erforderlich %}<span class="badge">nicht nötig</span>
+    {% elif b.has_quittung %}<span class="badge ok">vorhanden</span>
+    {% else %}<span class="badge missing">fehlt</span>{% endif %}
+  </td>
+  <td>
+    {% if b.has_bankbeleg %}<span class="badge ok">vorhanden</span>{% else %}<span class="badge missing">fehlt</span>{% endif %}
+  </td>
+</tr>

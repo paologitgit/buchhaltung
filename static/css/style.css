@@ -149,6 +149,19 @@ tbody tr:hover {
   background: var(--surface);
 }
 
+tr.group-header {
+  background: var(--surface);
+}
+
+tr.group-header:hover {
+  background: var(--surface);
+}
+
+tr.group-header td {
+  padding-top: 0.7rem;
+  padding-bottom: 0.4rem;
+}
+
 .badge {
   display: inline-block;
   padding: 0.1rem 0.5rem;

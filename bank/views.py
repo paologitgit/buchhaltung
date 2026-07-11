@@ -1,3 +1,6 @@
+import re
+from collections import defaultdict
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
@@ -22,6 +25,13 @@ ALLOWED_SORT_FIELDS = {
     "status": "status",
 }
 
+# Bewegungen mit gleichem Buchungstext werden nur zu einer Gruppe zusammen-
+# gefasst, wenn es davon MEHR als so viele gibt -- bei wenigen Treffern lohnt
+# sich eine eigene Gruppe nicht.
+GROUP_MIN_COUNT = 5
+
+_WHITESPACE_RE = re.compile(r"\s+")
+
 
 def _build_sort_url(request, field, current_sort, current_order):
     params = request.GET.copy()
@@ -29,6 +39,31 @@ def _build_sort_url(request, field, current_sort, current_order):
     params["sort"] = field
     params["order"] = new_order
     return f"?{params.urlencode()}"
+
+
+def _normalize_description(description):
+    return _WHITESPACE_RE.sub(" ", description.strip()).lower()
+
+
+def _group_bewegungen(bewegungen):
+    """Fasst Bewegungen mit gleichem Buchungstext zu Gruppen zusammen, wenn es
+    davon mehr als GROUP_MIN_COUNT gibt. Reihenfolge innerhalb einer Gruppe
+    entspricht der bereits angewendeten Sortierung, Gruppen selbst werden
+    alphabetisch nach Beschreibung geordnet."""
+    by_description = defaultdict(list)
+    for bewegung in bewegungen:
+        by_description[_normalize_description(bewegung.description)].append(bewegung)
+
+    groups = []
+    ungrouped = []
+    for items in by_description.values():
+        if len(items) > GROUP_MIN_COUNT:
+            groups.append({"label": items[0].description, "count": len(items), "items": items})
+        else:
+            ungrouped.extend(items)
+
+    groups.sort(key=lambda g: g["label"].lower())
+    return groups, ungrouped
 
 
 def _beleg_exists(document_type):
@@ -86,8 +121,16 @@ def bewegung_list(request):
         field: _build_sort_url(request, field, sort, order) for field in ALLOWED_SORT_FIELDS
     }
 
+    bewegungen = list(qs[:500])
+    group_by = request.GET.get("gruppieren") == "1"
+    groups, ungrouped = _group_bewegungen(bewegungen) if group_by else (None, None)
+
     context = {
-        "bewegungen": qs[:500],
+        "bewegungen": bewegungen,
+        "group_by": group_by,
+        "groups": groups,
+        "ungrouped": ungrouped,
+        "group_min_count": GROUP_MIN_COUNT,
         "bank_accounts": BankAccount.objects.filter(is_active=True),
         "status_choices": Bewegung.Status.choices,
         "missing_quittung_count": missing_quittung_count,
