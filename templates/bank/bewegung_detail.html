@@ -102,10 +102,15 @@
   {{ booking_form.as_p }}
   <button type="submit">Buchen</button>
 </form>
-<form method="post" style="margin-top:0.5rem;">
+<form method="post" style="margin-top:0.5rem; display:inline-block;">
   {% csrf_token %}
   <input type="hidden" name="action" value="ignore">
   <button type="submit" class="btn secondary">Als ignoriert markieren</button>
+</form>
+<form method="post" style="margin-top:0.5rem; display:inline-block;" onsubmit="return confirm('Diese Bewegung als privat verbuchen? Sie wird auf das Privatkonto gebucht, ohne MWST, und fliesst nicht in Erfolgsrechnung/Auswertung ein.');">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="book_private">
+  <button type="submit" class="btn secondary">Als privat verbuchen</button>
 </form>
 {% endif %}
 

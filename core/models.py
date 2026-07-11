@@ -9,6 +9,19 @@ class CompanySettings(models.Model):
         verbose_name="MWST-pflichtig",
         help_text="Wenn deaktiviert, wird die MWST-Auswahl beim Verbuchen ausgeblendet.",
     )
+    privatkonto = models.ForeignKey(
+        "ledger.Account",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+        verbose_name="Privatkonto",
+        help_text=(
+            "Gegenkonto für Bewegungen, die als privat markiert werden (z.B. private Käufe über die "
+            "geschäftliche Zahlungsmethode). Wird ohne MWST verbucht und fliesst nicht in "
+            "Erfolgsrechnung/Auswertung ein. Leer = Konto mit Nummer 2850 wird automatisch verwendet."
+        ),
+    )
 
     class Meta:
         verbose_name = "Firmeneinstellung"

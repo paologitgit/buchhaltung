@@ -23,5 +23,6 @@
   {"model": "ledger.account", "pk": 22, "fields": {"code": "6600", "name": "Sonstiger Betriebsaufwand", "account_type": "AUFWAND", "is_active": true, "is_bank_account": false}},
   {"model": "ledger.account", "pk": 23, "fields": {"code": "6800", "name": "Abschreibungen", "account_type": "AUFWAND", "is_active": true, "is_bank_account": false}},
   {"model": "ledger.account", "pk": 24, "fields": {"code": "6900", "name": "Finanzaufwand (Bankspesen, Zinsen)", "account_type": "AUFWAND", "is_active": true, "is_bank_account": false}},
-  {"model": "ledger.account", "pk": 25, "fields": {"code": "8000", "name": "Ausserordentlicher Aufwand/Ertrag", "account_type": "AUFWAND", "is_active": true, "is_bank_account": false}}
+  {"model": "ledger.account", "pk": 25, "fields": {"code": "8000", "name": "Ausserordentlicher Aufwand/Ertrag", "account_type": "AUFWAND", "is_active": true, "is_bank_account": false}},
+  {"model": "ledger.account", "pk": 26, "fields": {"code": "2850", "name": "Privatbezüge / Privateinlagen", "account_type": "PASSIVA", "is_active": true, "is_bank_account": false}}
 ]

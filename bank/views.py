@@ -8,6 +8,7 @@ from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.decorators import owner_required
+from core.models import CompanySettings
 from documents.forms import BelegUploadForm
 from documents.models import Beleg
 from ledger.models import Account
@@ -172,6 +173,23 @@ def bewegung_detail(request, pk):
                         user=request.user,
                     )
                     messages.success(request, "Bewegung wurde verbucht.")
+                    return redirect("bewegung_detail", pk=pk)
+                except ValidationError as exc:
+                    for error in exc.messages:
+                        messages.error(request, error)
+        elif action == "book_private" and can_book:
+            privatkonto = CompanySettings.load().privatkonto or Account.objects.filter(code="2850").first()
+            if not privatkonto:
+                messages.error(
+                    request,
+                    "Kein Privatkonto konfiguriert. Bitte in den Einstellungen ein Privatkonto festlegen.",
+                )
+            else:
+                try:
+                    book_bewegung(bewegung, gegenkonto=privatkonto, vat_code=None, user=request.user)
+                    bewegung.quittung_erforderlich = False
+                    bewegung.save(update_fields=["quittung_erforderlich"])
+                    messages.success(request, "Bewegung wurde als privat verbucht.")
                     return redirect("bewegung_detail", pk=pk)
                 except ValidationError as exc:
                     for error in exc.messages:
