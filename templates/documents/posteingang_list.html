@@ -24,6 +24,16 @@
       {% if beleg.note %}<div class="muted">{{ beleg.note }}</div>{% endif %}
       <div class="beleg-actions">
         <a class="btn" href="{% url 'beleg_assign' beleg.pk %}">Bewegung zuweisen</a>
+        <form method="post" action="{% url 'beleg_change_type' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <select name="document_type" style="width:auto;">
+            {% for value, label in document_type_choices %}
+            <option value="{{ value }}" {% if beleg.document_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn secondary">Typ ändern</button>
+        </form>
         <form method="post" action="{% url 'beleg_delete' beleg.pk %}" onsubmit="return confirm('Beleg wirklich löschen?');">
           {% csrf_token %}
           <button type="submit" class="btn danger">Löschen</button>

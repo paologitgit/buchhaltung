@@ -122,6 +122,24 @@ def beleg_toggle_hidden(request, pk):
 
 @login_required
 @owner_required
+def beleg_change_type(request, pk):
+    beleg = get_object_or_404(Beleg, pk=pk)
+    if request.method == "POST":
+        document_type = request.POST.get("document_type")
+        if document_type in Beleg.DocumentType.values:
+            beleg.document_type = document_type
+            beleg.save(update_fields=["document_type"])
+            messages.success(request, "Beleg-Typ wurde geändert.")
+        else:
+            messages.error(request, "Ungültiger Beleg-Typ.")
+        next_url = request.POST.get("next")
+        if next_url and url_has_allowed_host_and_scheme(next_url, allowed_hosts={request.get_host()}):
+            return redirect(next_url)
+    return _redirect_after_beleg_action(beleg)
+
+
+@login_required
+@owner_required
 def beleg_upload(request, bewegung_id):
     bewegung = get_object_or_404(Bewegung, pk=bewegung_id)
     if request.method == "POST":
@@ -229,7 +247,8 @@ def beleg_delete(request, pk):
 @owner_required
 def posteingang_list(request):
     belege = Beleg.objects.filter(bewegung__isnull=True).select_related("uploaded_by")
-    return render(request, "documents/posteingang_list.html", {"belege": belege})
+    context = {"belege": belege, "document_type_choices": Beleg.DocumentType.choices}
+    return render(request, "documents/posteingang_list.html", context)
 
 
 @login_required

@@ -68,6 +68,16 @@
         {% endif %}
         <a class="btn secondary" href="{% url 'beleg_assign' beleg.pk %}">Verschieben</a>
         <a class="btn secondary" href="{% url 'beleg_copy' beleg.pk %}">An weitere Bewegung anhängen</a>
+        <form method="post" action="{% url 'beleg_change_type' beleg.pk %}">
+          {% csrf_token %}
+          <input type="hidden" name="next" value="{{ request.get_full_path }}">
+          <select name="document_type" style="width:auto;">
+            {% for value, label in document_type_choices %}
+            <option value="{{ value }}" {% if beleg.document_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn secondary">Typ ändern</button>
+        </form>
         <form method="post" action="{% url 'beleg_toggle_hidden' beleg.pk %}">
           {% csrf_token %}
           <input type="hidden" name="next" value="{{ request.get_full_path }}">

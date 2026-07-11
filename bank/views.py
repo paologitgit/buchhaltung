@@ -216,6 +216,7 @@ def bewegung_detail(request, pk):
         "booking_form": booking_form,
         "upload_form": upload_form,
         "can_book": can_book,
+        "document_type_choices": Beleg.DocumentType.choices,
     }
     return render(request, "bank/bewegung_detail.html", context)
 
