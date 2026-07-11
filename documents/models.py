@@ -39,6 +39,7 @@ class Beleg(models.Model):
     extracted_text = models.TextField(
         blank=True,
         default="",
+        db_default="",
         verbose_name="Erkannter Text",
         help_text="Beim Hochladen automatisch aus dem Dokument extrahierter Text (PDF-Text oder OCR), für die Volltextsuche.",
     )
