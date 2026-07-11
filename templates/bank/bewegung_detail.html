@@ -89,7 +89,23 @@
 {% if upload_form %}
 <form method="post" action="{% url 'beleg_upload' bewegung.pk %}" enctype="multipart/form-data">
   {% csrf_token %}
-  {{ upload_form.as_p }}
+  <p>
+    {{ upload_form.document_type.label_tag }}
+    {{ upload_form.document_type }}
+    {{ upload_form.document_type.errors }}
+  </p>
+  <p>
+    {{ upload_form.note.label_tag }}
+    {{ upload_form.note }}
+    {{ upload_form.note.errors }}
+  </p>
+  <label for="beleg-upload-file">Beleg-Datei(en) (PDF/Bild)</label>
+  <div class="dropzone">
+    <input type="file" name="file" id="beleg-upload-file" multiple
+      accept="application/pdf,image/jpeg,image/png,image/webp">
+    <div class="dropzone-hint">Dateien hierher ziehen oder klicken zum Auswählen (mehrere möglich)</div>
+    <div class="dropzone-files"></div>
+  </div>
   <button type="submit">Beleg hochladen</button>
 </form>
 {% endif %}

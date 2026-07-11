@@ -8,7 +8,11 @@
     {% csrf_token %}
     {{ form.as_p }}
     <label for="files">Dateien</label>
-    <input type="file" name="files" id="files" multiple required accept="application/pdf,image/jpeg,image/png,image/webp">
+    <div class="dropzone">
+      <input type="file" name="files" id="files" multiple required accept="application/pdf,image/jpeg,image/png,image/webp">
+      <div class="dropzone-hint">Dateien hierher ziehen oder klicken zum Auswählen</div>
+      <div class="dropzone-files"></div>
+    </div>
     <button type="submit">Hochladen</button>
   </form>
 </div>

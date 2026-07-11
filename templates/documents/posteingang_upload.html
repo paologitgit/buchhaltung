@@ -6,7 +6,34 @@
 <div class="card" style="max-width:480px;">
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}
-    {{ form.as_p }}
+    <label for="{{ form.file.id_for_label }}">{{ form.file.label }}</label>
+    <div class="dropzone">
+      {{ form.file }}
+      <div class="dropzone-hint">Datei hierher ziehen oder klicken zum Auswählen</div>
+      <div class="dropzone-files"></div>
+    </div>
+    {{ form.file.errors }}
+    <p>
+      {{ form.document_type.label_tag }}
+      {{ form.document_type }}
+      {{ form.document_type.errors }}
+    </p>
+    <p>
+      {{ form.expected_amount.label_tag }}
+      {{ form.expected_amount }}
+      {{ form.expected_amount.errors }}
+      <span class="helptext">{{ form.expected_amount.help_text }}</span>
+    </p>
+    <p>
+      {{ form.expected_date.label_tag }}
+      {{ form.expected_date }}
+      {{ form.expected_date.errors }}
+    </p>
+    <p>
+      {{ form.note.label_tag }}
+      {{ form.note }}
+      {{ form.note.errors }}
+    </p>
     <button type="submit">Hochladen</button>
   </form>
 </div>

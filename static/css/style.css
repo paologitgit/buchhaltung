@@ -457,6 +457,37 @@ button:hover, .btn:hover {
   white-space: nowrap;
 }
 
+.dropzone {
+  border: 2px dashed var(--border);
+  border-radius: 4px;
+  padding: 1.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  margin-top: 0.4rem;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.dropzone:hover,
+.dropzone.dropzone-active {
+  border-color: var(--fg);
+  background: var(--surface);
+}
+
+.dropzone input[type="file"] {
+  display: none;
+}
+
+.dropzone-hint {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.dropzone-files {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
 .text-right {
   text-align: right;
 }

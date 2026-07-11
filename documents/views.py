@@ -125,20 +125,38 @@ def beleg_toggle_hidden(request, pk):
 def beleg_upload(request, bewegung_id):
     bewegung = get_object_or_404(Bewegung, pk=bewegung_id)
     if request.method == "POST":
-        form = BelegUploadForm(request.POST, request.FILES)
-        if form.is_valid():
-            uploaded = form.cleaned_data["file"]
-            beleg = form.save(commit=False)
-            beleg.bewegung = bewegung
-            beleg.uploaded_by = request.user
-            beleg.original_filename = uploaded.name
-            beleg.content_type = getattr(uploaded, "content_type", "") or ""
-            beleg.size_bytes = uploaded.size
-            beleg.save()
-            messages.success(request, "Beleg wurde hochgeladen.")
-        else:
-            for error in form.errors.get("file", []):
-                messages.error(request, error)
+        files = request.FILES.getlist("file")
+        if not files:
+            messages.error(request, "Bitte mindestens eine Datei auswählen.")
+            return redirect("bewegung_detail", pk=bewegung_id)
+
+        shared_data = {
+            "document_type": request.POST.get("document_type", Beleg.DocumentType.QUITTUNG),
+            "note": request.POST.get("note", ""),
+        }
+        uploaded_count = 0
+        failed = []
+        for uploaded in files:
+            form = BelegUploadForm(data=shared_data, files={"file": uploaded})
+            if form.is_valid():
+                beleg = form.save(commit=False)
+                beleg.bewegung = bewegung
+                beleg.uploaded_by = request.user
+                beleg.original_filename = uploaded.name
+                beleg.content_type = getattr(uploaded, "content_type", "") or ""
+                beleg.size_bytes = uploaded.size
+                beleg.save()
+                uploaded_count += 1
+            else:
+                failed.append(uploaded.name)
+
+        if uploaded_count:
+            messages.success(request, f"{uploaded_count} Beleg(e) wurden hochgeladen.")
+        if failed:
+            messages.error(
+                request,
+                f"Nicht hochgeladen (ungültiges Format oder zu gross): {', '.join(failed)}",
+            )
     return redirect("bewegung_detail", pk=bewegung_id)
 
 
