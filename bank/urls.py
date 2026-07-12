@@ -9,4 +9,5 @@ urlpatterns = [
     path("bewegungen/verbuchen/", views.bewegung_bulk_book, name="bewegung_bulk_book"),
     path("bewegungen/<int:pk>/", views.bewegung_detail, name="bewegung_detail"),
     path("bewegungen/<int:pk>/loeschen/", views.bewegung_delete, name="bewegung_delete"),
+    path("bewegungen/<int:pk>/text-bearbeiten/", views.bewegung_edit_description, name="bewegung_edit_description"),
 ]

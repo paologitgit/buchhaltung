@@ -4,7 +4,19 @@
 <h1>Bewegung vom {{ bewegung.booking_date }}</h1>
 
 <div class="card">
-  <p><strong>Beschreibung:</strong> {{ bewegung.description }}</p>
+  <p>
+    <strong>Beschreibung:</strong> {{ bewegung.description }}
+    {% if user.has_write_access %}
+    <details style="display:inline-block; margin-left:0.5rem;">
+      <summary style="display:inline; cursor:pointer; color:var(--muted); font-size:0.85rem;">Bearbeiten</summary>
+      <form method="post" action="{% url 'bewegung_edit_description' bewegung.pk %}" style="margin-top:0.5rem; max-width:480px;">
+        {% csrf_token %}
+        <input type="text" name="description" value="{{ bewegung.description }}" required>
+        <button type="submit" class="btn secondary">Speichern</button>
+      </form>
+    </details>
+    {% endif %}
+  </p>
   <p><strong>Betrag:</strong> {{ bewegung.amount }} {{ bewegung.currency }}</p>
   <p><strong>Bankkonto:</strong> {{ bewegung.bank_account.name }}</p>
   <p><strong>Status:</strong> {{ bewegung.get_status_display }}</p>

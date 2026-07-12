@@ -223,6 +223,35 @@ def bewegung_detail(request, pk):
 
 @login_required
 @owner_required
+def bewegung_edit_description(request, pk):
+    bewegung = get_object_or_404(Bewegung, pk=pk)
+    if request.method == "POST":
+        if bewegung.journal_entry_id and bewegung.journal_entry.is_locked:
+            messages.error(
+                request,
+                "Diese Bewegung ist gesperrt (Geschäftsjahr abgeschlossen) und kann nicht mehr bearbeitet werden.",
+            )
+            return redirect("bewegung_detail", pk=pk)
+
+        description = request.POST.get("description", "").strip()
+        if not description:
+            messages.error(request, "Beschreibung darf nicht leer sein.")
+            return redirect("bewegung_detail", pk=pk)
+
+        bewegung.description = description
+        bewegung.save(update_fields=["description"])
+        # Bereits verbuchte Bewegungen haben eine eigene Kopie des Texts auf
+        # der Buchung -- ohne diese mitzuziehen bliebe der Fehler in Journal
+        # und Export bestehen.
+        if bewegung.journal_entry_id:
+            bewegung.journal_entry.description = description[:255]
+            bewegung.journal_entry.save(update_fields=["description"])
+        messages.success(request, "Beschreibung wurde geändert.")
+    return redirect("bewegung_detail", pk=pk)
+
+
+@login_required
+@owner_required
 def bewegung_delete(request, pk):
     bewegung = get_object_or_404(Bewegung, pk=pk)
     if request.method == "POST":
