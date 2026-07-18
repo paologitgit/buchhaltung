@@ -19,7 +19,7 @@ from core.decorators import owner_required
 
 from .forms import BelegUploadForm, PosteingangBulkUploadForm, PosteingangUploadForm
 from .matching import _amount_range_filter, bewegungen_matching_amount, find_matching_bewegung
-from .models import Beleg
+from .models import Beleg, IgnoredDuplicateHash
 from .services import compute_file_hash, get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
 from .statement_parser import parse_statement
 from .text_extraction import update_extracted_text
@@ -162,8 +162,11 @@ def beleg_duplicates(request):
     zweimal unabhängig hochgeladen oder gescannt wurde. Bewusste Kopien über
     'an weitere Bewegung anhängen' bilden bereits eine einzige source-Gruppe
     und tauchen hier nicht auf."""
+    ignored_hashes = set(IgnoredDuplicateHash.objects.values_list("file_hash", flat=True))
+
     all_hashed = (
         Beleg.objects.exclude(file_hash="")
+        .exclude(file_hash__in=ignored_hashes)
         .select_related("bewegung", "bewegung__bank_account")
         .order_by("uploaded_at")
     )
@@ -218,6 +221,15 @@ def beleg_duplicates_merge(request, file_hash):
                 .update(source_id=canonical_root_id)
             )
         messages.success(request, f"{updated} Beleg(e) zu einer gemeinsamen Gruppe zusammengeführt.")
+    return redirect("beleg_duplicates")
+
+
+@login_required
+@owner_required
+def beleg_duplicates_ignore(request, file_hash):
+    if request.method == "POST":
+        IgnoredDuplicateHash.objects.get_or_create(file_hash=file_hash, defaults={"ignored_by": request.user})
+        messages.success(request, "Wird nicht mehr als Duplikat vorgeschlagen.")
     return redirect("beleg_duplicates")
 
 

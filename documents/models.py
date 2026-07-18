@@ -82,3 +82,21 @@ class Beleg(models.Model):
 
     def __str__(self):
         return self.original_filename
+
+
+class IgnoredDuplicateHash(models.Model):
+    """Datei-Prüfsummen, die bewusst als 'kein Duplikat' markiert wurden --
+    z.B. weil mehrere unterschiedliche Belege zufällig identischen Inhalt
+    haben (etwa ein leeres/generisches Vorlagendokument). Blendet die
+    Gruppe dauerhaft aus der Duplikate-Übersicht aus."""
+
+    file_hash = models.CharField(max_length=64, unique=True)
+    ignored_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    ignored_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Ignoriertes Duplikat"
+        verbose_name_plural = "Ignorierte Duplikate"
+
+    def __str__(self):
+        return self.file_hash

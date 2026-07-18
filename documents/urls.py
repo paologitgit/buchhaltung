@@ -7,6 +7,7 @@ urlpatterns = [
     path("alle/", views.beleg_list, name="beleg_list"),
     path("duplikate/", views.beleg_duplicates, name="beleg_duplicates"),
     path("duplikate/<str:file_hash>/zusammenfuehren/", views.beleg_duplicates_merge, name="beleg_duplicates_merge"),
+    path("duplikate/<str:file_hash>/ignorieren/", views.beleg_duplicates_ignore, name="beleg_duplicates_ignore"),
     path("posteingang/", views.posteingang_list, name="posteingang_list"),
     path("posteingang/hochladen/", views.posteingang_upload, name="posteingang_upload"),
     path("posteingang/mehrfach-hochladen/", views.posteingang_bulk_upload, name="posteingang_bulk_upload"),

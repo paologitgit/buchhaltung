@@ -40,11 +40,17 @@
   </div>
   {% endfor %}
 
-  <form method="post" action="{% url 'beleg_duplicates_merge' group.file_hash %}" onsubmit="return confirm('Alle {{ group.total }} Belege dieser Gruppen zu einer gemeinsamen Gruppe zusammenführen?');">
-    {% csrf_token %}
-    <input type="hidden" name="canonical_root" value="{{ group.canonical_root_id }}">
-    <button type="submit" class="btn">Diese Gruppen zusammenführen</button>
-  </form>
+  <div class="beleg-actions">
+    <form method="post" action="{% url 'beleg_duplicates_merge' group.file_hash %}" onsubmit="return confirm('Alle {{ group.total }} Belege dieser Gruppen zu einer gemeinsamen Gruppe zusammenführen?');">
+      {% csrf_token %}
+      <input type="hidden" name="canonical_root" value="{{ group.canonical_root_id }}">
+      <button type="submit" class="btn">Diese Gruppen zusammenführen</button>
+    </form>
+    <form method="post" action="{% url 'beleg_duplicates_ignore' group.file_hash %}">
+      {% csrf_token %}
+      <button type="submit" class="btn secondary">Kein Duplikat – nicht mehr vorschlagen</button>
+    </form>
+  </div>
 </div>
 {% empty %}
 <p class="muted">Keine getrennten Duplikat-Gruppen gefunden.</p>
