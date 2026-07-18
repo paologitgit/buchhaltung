@@ -2,6 +2,7 @@
 {% block title %}Belege – Buchhaltung{% endblock %}
 {% block content %}
 <h1>Alle Belege</h1>
+{% if user.has_write_access %}<p><a href="{% url 'beleg_duplicates' %}">Duplikate prüfen</a></p>{% endif %}
 
 <form method="get" class="filters">
   <div>

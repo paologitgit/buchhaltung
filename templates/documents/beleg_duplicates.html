@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Duplikate – Buchhaltung{% endblock %}
+{% block content %}
+<h1>Duplikate</h1>
+<p class="muted">
+  Zeigt Belege mit identischem Dateiinhalt, die aber in getrennte Gruppen zerfallen sind --
+  z.B. weil dieselbe Kreditkarten-Abrechnung zweimal unabhängig hochgeladen oder gescannt wurde.
+  Bewusste Kopien über "an weitere Bewegung anhängen" bilden bereits eine einzige Gruppe und
+  erscheinen hier nicht.
+</p>
+
+{% for group in groups %}
+<div class="card" style="margin-bottom:1.5rem;">
+  <p><strong>{{ group.total }} Belege, {{ group.roots|length }} getrennte Gruppen</strong></p>
+
+  {% for root_id, members in group.roots %}
+  <div style="margin-bottom:1rem; padding-bottom:1rem; border-bottom:1px solid var(--border);">
+    <p class="muted">Gruppe (Konto-Beleg #{{ root_id }}){% if root_id == group.canonical_root_id %} -- wird beim Zusammenführen zur Hauptgruppe{% endif %}</p>
+    <ul class="beleg-list">
+      {% for beleg in members %}
+      <li class="beleg-item">
+        <div class="beleg-preview">
+          <a href="{% url 'beleg_download' beleg.pk %}" target="_blank" rel="noopener">
+            <img src="{% url 'beleg_thumbnail' beleg.pk %}" alt="{{ beleg.original_filename }}" loading="lazy">
+          </a>
+        </div>
+        <div class="beleg-meta">
+          <div>{{ beleg.original_filename }} <span class="muted">({{ beleg.uploaded_at|date:"d.m.Y H:i" }})</span></div>
+          <div>
+            {% if beleg.bewegung_id %}
+            Bewegung: <a href="{% url 'bewegung_detail' beleg.bewegung_id %}">{{ beleg.bewegung.booking_date|date:"d.m.Y" }} – {{ beleg.bewegung.description|truncatechars:40 }} ({{ beleg.bewegung.amount }} {{ beleg.bewegung.currency }})</a>
+            {% else %}
+            <span class="muted">im Posteingang</span>
+            {% endif %}
+          </div>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
+  {% endfor %}
+
+  <form method="post" action="{% url 'beleg_duplicates_merge' group.file_hash %}" onsubmit="return confirm('Alle {{ group.total }} Belege dieser Gruppen zu einer gemeinsamen Gruppe zusammenführen?');">
+    {% csrf_token %}
+    <input type="hidden" name="canonical_root" value="{{ group.canonical_root_id }}">
+    <button type="submit" class="btn">Diese Gruppen zusammenführen</button>
+  </form>
+</div>
+{% empty %}
+<p class="muted">Keine getrennten Duplikat-Gruppen gefunden.</p>
+{% endfor %}
+
+<p><a href="{% url 'beleg_list' %}">&larr; zurück zu allen Belegen</a></p>
+{% endblock %}

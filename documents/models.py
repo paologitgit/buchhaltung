@@ -36,6 +36,15 @@ class Beleg(models.Model):
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
     uploaded_at = models.DateTimeField(auto_now_add=True)
     note = models.CharField(max_length=255, blank=True)
+    file_hash = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
+        db_default="",
+        db_index=True,
+        verbose_name="Datei-Prüfsumme",
+        help_text="SHA-256 des Dateiinhalts, zur Duplikat-Erkennung.",
+    )
     extracted_text = models.TextField(
         blank=True,
         default="",

@@ -1,9 +1,26 @@
+import hashlib
 import io
 import os
 from pathlib import Path
 
 from django.conf import settings
 from PIL import Image, ImageOps
+
+HASH_CHUNK_SIZE = 1024 * 1024
+
+
+def compute_file_hash(file_obj):
+    """SHA-256 des Dateiinhalts, zur Duplikat-Erkennung. Akzeptiert ein
+    file-like Objekt (wird an den Anfang zurückgespult) oder rohe Bytes."""
+    if isinstance(file_obj, (bytes, bytearray)):
+        return hashlib.sha256(file_obj).hexdigest()
+
+    digest = hashlib.sha256()
+    file_obj.seek(0)
+    for chunk in iter(lambda: file_obj.read(HASH_CHUNK_SIZE), b""):
+        digest.update(chunk)
+    file_obj.seek(0)
+    return digest.hexdigest()
 
 FORMAT_BY_CONTENT_TYPE = {
     "image/jpeg": "JPEG",

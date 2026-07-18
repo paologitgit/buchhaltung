@@ -20,7 +20,7 @@ from core.decorators import owner_required
 from .forms import BelegUploadForm, PosteingangBulkUploadForm, PosteingangUploadForm
 from .matching import _amount_range_filter, bewegungen_matching_amount, find_matching_bewegung
 from .models import Beleg
-from .services import get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
+from .services import compute_file_hash, get_or_create_thumbnail_path, rotate_image_file, rotate_pdf_file
 from .statement_parser import parse_statement
 from .text_extraction import update_extracted_text
 
@@ -40,6 +40,38 @@ def _redirect_after_beleg_action(beleg):
     if beleg.bewegung_id:
         return redirect("bewegung_detail", pk=beleg.bewegung_id)
     return redirect("posteingang_list")
+
+
+def _set_file_hash(beleg, file_obj):
+    beleg.file_hash = compute_file_hash(file_obj)
+    beleg.save(update_fields=["file_hash"])
+
+
+def _warn_if_duplicate(request, beleg):
+    """Meldet, falls eine Datei mit identischem Inhalt schon existiert. Nur
+    für frische Uploads gedacht -- bewusste Kopien über 'an weitere Bewegung
+    anhängen' sind bereits über 'Auch abgelegt bei' verknüpft und sollen
+    hier nicht warnen."""
+    if not beleg.file_hash:
+        return
+    existing = (
+        Beleg.objects.filter(file_hash=beleg.file_hash)
+        .exclude(pk=beleg.pk)
+        .select_related("bewegung")
+        .order_by("uploaded_at")
+        .first()
+    )
+    if not existing:
+        return
+    where = f"Bewegung vom {existing.bewegung.booking_date:%d.%m.%Y}" if existing.bewegung_id else "im Posteingang"
+    messages.warning(
+        request,
+        f"Hinweis: '{beleg.original_filename}' scheint bereits hochgeladen zu sein "
+        f"(Beleg vom {existing.uploaded_at:%d.%m.%Y}, {where}). Falls du denselben Beleg "
+        f"einer weiteren Bewegung zuordnen willst, nutze dort besser 'An weitere Bewegung "
+        f"anhängen' statt eines erneuten Uploads -- so bleiben alle Zuordnungen als eine "
+        f"Gruppe nachvollziehbar.",
+    )
 
 
 def _beleg_search_q(search):
@@ -124,6 +156,73 @@ def _attach_group_members(belege):
 
 @login_required
 @owner_required
+def beleg_duplicates(request):
+    """Zeigt Belege mit identischem Dateiinhalt, die aber in getrennte
+    source-Gruppen zerfallen -- z.B. weil dieselbe Kreditkarten-Abrechnung
+    zweimal unabhängig hochgeladen oder gescannt wurde. Bewusste Kopien über
+    'an weitere Bewegung anhängen' bilden bereits eine einzige source-Gruppe
+    und tauchen hier nicht auf."""
+    all_hashed = (
+        Beleg.objects.exclude(file_hash="")
+        .select_related("bewegung", "bewegung__bank_account")
+        .order_by("uploaded_at")
+    )
+    by_hash = {}
+    for beleg in all_hashed:
+        by_hash.setdefault(beleg.file_hash, []).append(beleg)
+
+    groups = []
+    for file_hash, members in by_hash.items():
+        by_root = {}
+        for m in members:
+            by_root.setdefault(m.source_id or m.id, []).append(m)
+        if len(by_root) < 2:
+            continue
+        roots = sorted(by_root.items(), key=lambda item: min(m.uploaded_at for m in item[1]))
+        groups.append(
+            {
+                "file_hash": file_hash,
+                "roots": roots,
+                "canonical_root_id": roots[0][0],
+                "total": len(members),
+            }
+        )
+
+    context = {"groups": groups}
+    return render(request, "documents/beleg_duplicates.html", context)
+
+
+@login_required
+@owner_required
+def beleg_duplicates_merge(request, file_hash):
+    if request.method == "POST":
+        members = list(Beleg.objects.filter(file_hash=file_hash))
+        if not members:
+            messages.error(request, "Keine Belege mit dieser Prüfsumme gefunden.")
+            return redirect("beleg_duplicates")
+
+        root_ids = {m.source_id or m.id for m in members}
+        try:
+            canonical_root_id = int(request.POST.get("canonical_root", ""))
+        except (TypeError, ValueError):
+            canonical_root_id = None
+        if canonical_root_id not in root_ids:
+            messages.error(request, "Ungültige Auswahl für die Zusammenführung.")
+            return redirect("beleg_duplicates")
+
+        updated = 0
+        for other_root_id in root_ids - {canonical_root_id}:
+            updated += (
+                Beleg.objects.filter(Q(pk=other_root_id) | Q(source_id=other_root_id))
+                .exclude(pk=canonical_root_id)
+                .update(source_id=canonical_root_id)
+            )
+        messages.success(request, f"{updated} Beleg(e) zu einer gemeinsamen Gruppe zusammengeführt.")
+    return redirect("beleg_duplicates")
+
+
+@login_required
+@owner_required
 def beleg_toggle_hidden(request, pk):
     beleg = get_object_or_404(Beleg, pk=pk)
     if request.method == "POST":
@@ -179,6 +278,8 @@ def beleg_upload(request, bewegung_id):
                 beleg.content_type = getattr(uploaded, "content_type", "") or ""
                 beleg.size_bytes = uploaded.size
                 beleg.save()
+                _set_file_hash(beleg, uploaded)
+                _warn_if_duplicate(request, beleg)
                 update_extracted_text(beleg)
                 uploaded_count += 1
             else:
@@ -286,6 +387,8 @@ def posteingang_upload(request):
             if match:
                 beleg.bewegung = match
                 beleg.save()
+                _set_file_hash(beleg, uploaded)
+                _warn_if_duplicate(request, beleg)
                 update_extracted_text(beleg)
                 messages.success(
                     request,
@@ -295,6 +398,8 @@ def posteingang_upload(request):
                 return redirect("bewegung_detail", pk=match.pk)
             beleg.bewegung = None
             beleg.save()
+            _set_file_hash(beleg, uploaded)
+            _warn_if_duplicate(request, beleg)
             update_extracted_text(beleg)
             messages.info(request, "Kein eindeutiger Treffer gefunden – Beleg liegt im Posteingang.")
             return redirect("posteingang_list")
@@ -328,6 +433,8 @@ def posteingang_bulk_upload(request):
                 beleg.content_type = getattr(uploaded_file, "content_type", "") or ""
                 beleg.size_bytes = uploaded_file.size
                 beleg.save()
+                _set_file_hash(beleg, uploaded_file)
+                _warn_if_duplicate(request, beleg)
                 update_extracted_text(beleg)
                 created += 1
             else:
@@ -412,6 +519,7 @@ def beleg_copy(request, pk):
             note=beleg.note or f"Kopie von Beleg #{beleg.pk}",
             source=beleg.source or beleg,
             extracted_text=beleg.extracted_text,
+            file_hash=beleg.file_hash or compute_file_hash(file_bytes),
         )
         copy.file.save(beleg.original_filename, ContentFile(file_bytes), save=False)
         copy.save()
@@ -637,9 +745,14 @@ def statement_scan_review(request):
         confirmed = 0
         created_bewegungen = 0
         bank_account_id = data.get("bank_account_id")
-        # Alle bestätigten Zeilen erhalten dieselbe PDF -- Text nur einmal
-        # extrahieren (beim ersten erstellten Beleg) und wiederverwenden.
+        # Alle bestätigten Zeilen erhalten dieselbe PDF -- Text und Prüfsumme
+        # nur einmal berechnen (beim ersten erstellten Beleg) und wiederver-
+        # wenden. Der erste Beleg wird zur "source" der übrigen, damit sie als
+        # eine zusammengehörige Gruppe ("Auch abgelegt bei") erkennbar bleiben
+        # statt als unverbundene Duplikate.
         shared_extracted_text = None
+        shared_file_hash = None
+        root_beleg = None
         for row in data["rows"]:
             bewegung_id = request.POST.get(f"bewegung_{row['index']}")
             bewegung = None
@@ -664,9 +777,16 @@ def statement_scan_review(request):
                 content_type="application/pdf",
                 size_bytes=len(file_bytes),
                 note=f"Automatisch erkannt: {row['description']} ({row['amount']} CHF)",
+                source=root_beleg,
             )
             beleg.file.save(data["original_filename"], ContentFile(file_bytes), save=False)
             beleg.save()
+            if root_beleg is None:
+                root_beleg = beleg
+            if shared_file_hash is None:
+                shared_file_hash = compute_file_hash(file_bytes)
+            beleg.file_hash = shared_file_hash
+            beleg.save(update_fields=["file_hash"])
             if shared_extracted_text is None:
                 shared_extracted_text = update_extracted_text(beleg)
             else:
