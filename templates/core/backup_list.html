@@ -22,11 +22,38 @@
     <tr>
       <td>{{ b.name }}</td>
       <td>{{ b.size_mb }} MB</td>
-      <td><a class="btn secondary" href="{% url 'backup_download' b.name %}">Herunterladen</a></td>
+      <td>
+        <a class="btn secondary" href="{% url 'backup_download' b.name %}">Herunterladen</a>
+        <form method="post" action="{% url 'backup_restore' b.name %}" style="display:inline; margin:0;"
+          onsubmit="return confirm('Backup {{ b.name }} wiederherstellen?\n\nALLE aktuellen Daten (Buchungen, Bewegungen, Belege) werden mit dem Stand dieses Backups überschrieben. Vorher wird automatisch ein Sicherheits-Backup des jetzigen Stands erstellt.\n\nFortfahren?');">
+          {% csrf_token %}
+          <button type="submit" class="btn danger" style="margin:0;">Wiederherstellen</button>
+        </form>
+      </td>
     </tr>
     {% empty %}
     <tr><td colspan="3" class="muted">Noch kein Backup vorhanden.</td></tr>
     {% endfor %}
   </tbody>
 </table>
+
+<h2>Backup importieren</h2>
+<p class="muted">
+  Hier kannst du ein extern gesichertes Backup-Archiv (z.B. aus Google Drive oder von einem
+  anderen Rechner) hochladen und direkt wiederherstellen. Die Datei muss ein unverändertes
+  Archiv aus dieser App sein (backup_JJJJMMTT_HHMMSS.tar.gz). Auch hier wird vor dem
+  Überschreiben automatisch ein Sicherheits-Backup des aktuellen Stands erstellt.
+  Die Wiederherstellung kann einen Moment dauern; danach wirst du ggf. neu angemeldet.
+</p>
+<form method="post" action="{% url 'backup_upload' %}" enctype="multipart/form-data"
+  onsubmit="return confirm('Hochgeladenes Backup wiederherstellen?\n\nALLE aktuellen Daten werden mit dem Stand des hochgeladenen Backups überschrieben.\n\nFortfahren?');"
+  style="max-width:480px;">
+  {% csrf_token %}
+  <div class="dropzone">
+    <input type="file" name="archive" accept=".gz,application/gzip" required>
+    <div class="dropzone-hint">Backup-Archiv hierher ziehen oder klicken zum Auswählen</div>
+    <div class="dropzone-files"></div>
+  </div>
+  <button type="submit" class="btn danger">Hochladen und wiederherstellen</button>
+</form>
 {% endblock %}

@@ -56,12 +56,11 @@ class Command(BaseCommand):
                 f"  python manage.py restore {archive_path} --yes"
             )
 
-        if not options["no_safety_backup"]:
-            self.stdout.write("Erstelle Sicherheits-Backup des aktuellen Stands ...")
-            call_command("backup", "--no-upload")
-
         with tempfile.TemporaryDirectory(dir=settings.BACKUP_DIR) as tmp:
             extract_dir = Path(tmp)
+            # Zuerst entpacken, DANN das Sicherheits-Backup erstellen: so ist
+            # der wiederherzustellende Inhalt gesichert, selbst wenn die
+            # Archivdatei danach verändert würde.
             self.stdout.write(f"Entpacke {archive_path.name} ...")
             with tarfile.open(archive_path, "r:gz") as tar:
                 tar.extractall(extract_dir, filter="data")
@@ -75,6 +74,10 @@ class Command(BaseCommand):
             dump_path = content_dir / "database.sql"
             if not dump_path.exists():
                 raise CommandError("Archiv enthält keine database.sql -- kein gültiges Backup.")
+
+            if not options["no_safety_backup"]:
+                self.stdout.write("Erstelle Sicherheits-Backup des aktuellen Stands ...")
+                call_command("backup", "--no-upload", stdout=self.stdout)
 
             self._restore_database(dump_path)
             self._restore_belege(content_dir / "belege")

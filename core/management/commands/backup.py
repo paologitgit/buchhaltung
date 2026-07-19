@@ -21,7 +21,13 @@ class Command(BaseCommand):
         backup_dir = Path(settings.BACKUP_DIR)
         backup_dir.mkdir(parents=True, exist_ok=True)
 
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        # Nie eine bestehende Datei überschreiben: bei einer Kollision in
+        # derselben Sekunde (z.B. Sicherheits-Backup direkt nach einem
+        # manuellen Backup) den Zeitstempel hochzählen, bis der Name frei ist.
+        moment = datetime.now()
+        while (backup_dir / f"backup_{moment.strftime('%Y%m%d_%H%M%S')}.tar.gz").exists():
+            moment += timedelta(seconds=1)
+        timestamp = moment.strftime("%Y%m%d_%H%M%S")
         work_dir = backup_dir / f"_tmp_{timestamp}"
         work_dir.mkdir()
 

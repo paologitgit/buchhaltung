@@ -90,3 +90,63 @@ def backup_download(request, filename):
     response = FileResponse(open(path, "rb"), content_type="application/gzip")
     response["Content-Disposition"] = f'attachment; filename="{filename}"'
     return response
+
+
+def _run_restore(request, path):
+    """Führt den restore-Command aus (inkl. automatischem Sicherheits-Backup
+    des aktuellen Stands) und meldet das Ergebnis als Messages."""
+    out = StringIO()
+    try:
+        call_command("restore", str(path), "--yes", stdout=out)
+        messages.success(request, "Wiederherstellung abgeschlossen.")
+    except Exception as exc:
+        logger.exception("Wiederherstellung fehlgeschlagen")
+        messages.error(request, f"Wiederherstellung fehlgeschlagen: {exc}")
+        return False
+    for line in out.getvalue().splitlines():
+        if line:
+            messages.info(request, line)
+    return True
+
+
+@login_required
+@owner_required
+def backup_restore(request, filename):
+    if not BACKUP_FILENAME_RE.match(filename):
+        raise Http404
+    path = Path(settings.BACKUP_DIR) / filename
+    if not path.is_file():
+        raise Http404
+    if request.method == "POST":
+        _run_restore(request, path)
+    return redirect("backup_list")
+
+
+@login_required
+@owner_required
+def backup_upload(request):
+    """Importiert ein extern gespeichertes Backup-Archiv (z.B. aus Google
+    Drive heruntergeladen) und stellt es direkt wieder her."""
+    if request.method == "POST":
+        uploaded = request.FILES.get("archive")
+        if not uploaded:
+            messages.error(request, "Bitte eine Backup-Datei auswählen.")
+            return redirect("backup_list")
+        if not BACKUP_FILENAME_RE.match(uploaded.name):
+            messages.error(
+                request,
+                "Ungültiger Dateiname. Erwartet wird ein unverändertes Backup-Archiv "
+                "(backup_JJJJMMTT_HHMMSS.tar.gz).",
+            )
+            return redirect("backup_list")
+
+        backup_dir = Path(settings.BACKUP_DIR)
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        target = backup_dir / uploaded.name
+        with open(target, "wb") as f:
+            for chunk in uploaded.chunks():
+                f.write(chunk)
+        messages.info(request, f"Archiv {uploaded.name} hochgeladen.")
+
+        _run_restore(request, target)
+    return redirect("backup_list")
