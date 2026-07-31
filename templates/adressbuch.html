@@ -2,19 +2,13 @@
 {% block title %}Adressbuch – Gig-Finder{% endblock %}
 {% block content %}
 <div class="results-head">
-  <h1>Adressbuch ({{ eintraege|length }} Adressen)</h1>
+  <h1>Adressbuch ({{ eintraege|length }} {{ "Adresse" if eintraege|length == 1 else "Adressen" }})</h1>
   <div class="actions">
     {% if eintraege %}
     <a class="button" href="{{ url_for('adressbuch_csv') }}">CSV herunterladen</a>
     {% endif %}
   </div>
 </div>
-
-{% with messages = get_flashed_messages(with_categories=true) %}
-  {% for category, msg in messages %}
-    <p class="{{ 'error' if category == 'error' else 'ok' }}">{{ msg }}</p>
-  {% endfor %}
-{% endwith %}
 
 <form method="post" action="{{ url_for('adressbuch_import') }}"
       enctype="multipart/form-data" class="import-form">
@@ -72,26 +66,9 @@
 </div>
 <p class="hint">Klick auf einen Spaltentitel sortiert die Tabelle.</p>
 {% else %}
-<p>Noch keine Adressen gespeichert. Führe eine Suche durch, lade die CSV
-herunter und importiere sie hier – oder importiere eine bestehende Datei.</p>
+<p>Noch keine Adressen gespeichert. Übernimm sie direkt aus einer Suche –
+oder importiere hier eine früher exportierte CSV-Datei.</p>
 {% endif %}
 
-<script>
-document.querySelectorAll("#results th[data-sort]").forEach((th, idx) => {
-  th.addEventListener("click", () => {
-    const tbody = th.closest("table").querySelector("tbody");
-    const rows = [...tbody.querySelectorAll("tr")];
-    const numeric = th.dataset.sort === "num";
-    const asc = th.dataset.asc !== "true";
-    th.dataset.asc = asc;
-    rows.sort((a, b) => {
-      const ca = a.cells[idx], cb = b.cells[idx];
-      const va = numeric ? parseFloat(ca.dataset.value ?? ca.textContent) : ca.textContent.trim().toLowerCase();
-      const vb = numeric ? parseFloat(cb.dataset.value ?? cb.textContent) : cb.textContent.trim().toLowerCase();
-      return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1);
-    });
-    rows.forEach(rw => tbody.appendChild(rw));
-  });
-});
-</script>
+<script src="{{ url_for('static', filename='sort.js') }}"></script>
 {% endblock %}

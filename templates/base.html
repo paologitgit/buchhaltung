@@ -18,6 +18,11 @@
     </nav>
   </header>
   <main>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, msg in messages %}
+        <p class="flash {{ 'error' if category == 'error' else 'ok' }}">{{ msg }}</p>
+      {% endfor %}
+    {% endwith %}
     {% block content %}{% endblock %}
   </main>
   <footer>

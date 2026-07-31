@@ -61,6 +61,46 @@ def test_import_rejects_foreign_csv():
         addressbook.import_csv(b"foo,bar\n1,2\n")
 
 
+def test_entry_from_location_uses_category_label():
+    entry = addressbook.entry_from_location({
+        "name": "Café Blue", "kategorie": "cafe", "kategorie_label": "Cafés",
+        "plz": "8400", "ort": "Winterthur", "email": "info@blue.ch",
+        "eignung": 4, "quelle": "OSM", "distanz_km": 0.4, "lat": 47.5,
+    })
+    assert entry["kategorie"] == "Cafés"
+    assert entry["eignung"] == 4
+    assert "distanz_km" not in entry and "lat" not in entry
+
+
+def test_add_entries_from_locations_skips_duplicates():
+    locations = [
+        {"name": "Café Blue", "kategorie_label": "Cafés", "plz": "8400",
+         "ort": "Winterthur", "email": "info@blue.ch", "eignung": 4},
+        {"name": "Weingut Sonnenhof", "kategorie_label": "Weingüter",
+         "plz": "8542", "ort": "Wiesendangen", "email": "", "eignung": None},
+    ]
+    entries = [addressbook.entry_from_location(l) for l in locations]
+    assert addressbook.add_entries(entries)["neu"] == 2
+    # zweite Übernahme derselben Suche legt nichts doppelt an
+    stats = addressbook.add_entries(entries)
+    assert stats == {"neu": 0, "ergaenzt": 0, "uebersprungen": 2, "fehler": 0}
+    assert len(addressbook.list_all()) == 2
+
+
+def test_already_saved_flags():
+    addressbook.import_csv(_csv("Café Blue;Cafés;;8400;Winterthur;;info@blue.ch;;;;;;OSM"))
+    flags = addressbook.already_saved([
+        {"name": "Café Blue", "plz": "8400", "email": ""},        # Name + PLZ
+        {"name": "Anderer Name", "plz": "9999", "email": "info@blue.ch"},  # E-Mail
+        {"name": "Neue Bar", "plz": "3000", "email": "neu@bar.ch"},
+    ])
+    assert flags == [True, True, False]
+
+
+def test_already_saved_on_empty_list():
+    assert addressbook.already_saved([]) == []
+
+
 def test_delete_and_export():
     addressbook.import_csv(_csv(
         "A-Lokal;;;8000;Zürich;;a@a.ch;;;;;;OSM",

@@ -114,7 +114,40 @@ def results(search_id):
     result = storage.load(search_id)
     if result is None:
         abort(404)
-    return render_template("results.html", r=result)
+    return render_template(
+        "results.html", r=result,
+        gespeichert=addressbook.already_saved(result.get("locations", [])),
+    )
+
+
+@app.route("/results/<search_id>/uebernehmen", methods=["POST"])
+def results_uebernehmen(search_id):
+    result = storage.load(search_id)
+    if result is None:
+        abort(404)
+    locations = result.get("locations", [])
+    auswahl = []
+    for raw in request.form.getlist("auswahl"):
+        try:
+            index = int(raw)
+        except ValueError:
+            continue
+        if 0 <= index < len(locations):
+            auswahl.append(locations[index])
+    if not auswahl:
+        flash("Es war keine Location ausgewählt.", "error")
+        return redirect(url_for("results", search_id=search_id))
+
+    stats = addressbook.add_entries(
+        [addressbook.entry_from_location(loc) for loc in auswahl])
+    wort = "Adresse" if stats["neu"] == 1 else "Adressen"
+    teile = [f"{stats['neu']} {wort} ins Adressbuch übernommen"]
+    if stats["ergaenzt"]:
+        teile.append(f"{stats['ergaenzt']} bestehende ergänzt")
+    if stats["uebersprungen"]:
+        teile.append(f"{stats['uebersprungen']} bereits vorhanden")
+    flash(", ".join(teile) + ".", "ok")
+    return redirect(url_for("results", search_id=search_id))
 
 
 @app.route("/results/<search_id>/csv")

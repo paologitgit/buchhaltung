@@ -71,14 +71,24 @@ deutlich günstiger (dafür etwas weniger treffsicher).
 
 ## Adressbuch
 
-Unter dem Menüpunkt **Adressbuch** kannst Du exportierte CSV-Dateien
-importieren und die Adressen damit dauerhaft speichern (SQLite-Datenbank
-in `data/adressbuch.sqlite3`, überlebt Container-Neustarts). Duplikate –
-gleicher Name + PLZ oder gleiche E-Mail – werden beim Import erkannt und
-übersprungen; bringt der Import neue Angaben zu einem bestehenden Eintrag
-mit (z. B. eine E-Mail, die vorher fehlte), werden sie ergänzt. Das ganze
-Adressbuch lässt sich wieder als CSV exportieren, einzelne Einträge kann
-man löschen.
+Adressen lassen sich dauerhaft speichern (SQLite-Datenbank in
+`data/adressbuch.sqlite3`, überlebt Container-Neustarts). Zwei Wege führen
+hinein:
+
+- **Direkt aus einer Suche:** Auf der Resultatseite ist jede Location mit
+  einem Kästchen versehen. Auswahl anpassen, «Ausgewählte ins Adressbuch
+  übernehmen» klicken – fertig.
+- **Per CSV-Import:** Unter **Adressbuch** eine früher exportierte
+  Gig-Finder-CSV hochladen.
+
+Auf beiden Wegen werden Duplikate – gleicher Name + PLZ oder gleiche
+E-Mail – erkannt und übersprungen. Bringt ein Eintrag neue Angaben zu
+einer bereits gespeicherten Adresse mit (z. B. eine E-Mail, die vorher
+fehlte), werden sie ergänzt. Locations, die schon im Adressbuch stehen,
+sind auf der Resultatseite mit ✓ markiert und haben kein Kästchen mehr.
+
+Das ganze Adressbuch lässt sich wieder als CSV exportieren; einzelne
+Einträge kann man löschen.
 
 ## CSV-Export
 

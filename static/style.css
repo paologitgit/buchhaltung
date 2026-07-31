@@ -27,6 +27,16 @@ header nav a { color: var(--ink); text-decoration: none; padding-bottom: .15rem;
 header nav a:hover { color: var(--accent-dark); }
 header nav a.active { border-bottom: 2px solid var(--accent); color: var(--accent-dark); }
 .ok { color: #2e6b2e; font-weight: bold; }
+.flash {
+  background: var(--card); border-left: 4px solid currentColor;
+  border-radius: 4px; padding: .7rem 1rem; margin-bottom: 1.2rem;
+}
+.uebernehmen { margin-top: 1rem; }
+.uebernehmen button { margin-top: 0; }
+th.pick, td.pick { width: 2.2rem; text-align: center; padding-right: 0; }
+tr.saved { color: var(--muted); }
+tr.saved td a { color: var(--muted); }
+.badge { color: #2e6b2e; font-weight: bold; }
 .import-form { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
 .import-form button { margin-top: 0; }
 .import-form .hint { flex-basis: 100%; margin: 0; }
