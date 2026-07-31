@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="wait">
+  <div class="spinner"></div>
+  <h1>Suche läuft …</h1>
+  <ul id="log"></ul>
+  <p class="hint">Websites werden gelesen und Kontaktdaten extrahiert – das dauert einen Moment.</p>
+</div>
+<script>
+async function poll() {
+  try {
+    const resp = await fetch("{{ url_for('status', job_id=job_id) }}");
+    if (!resp.ok) throw new Error(resp.status);
+    const data = await resp.json();
+    document.getElementById("log").innerHTML =
+      data.messages.map(m => `<li>${m}</li>`).join("");
+    if (data.status === "done") {
+      window.location = `/results/${data.result_id}`;
+      return;
+    }
+    if (data.status === "error") {
+      document.getElementById("log").innerHTML =
+        `<li class="error">Fehler: ${data.error}</li>`;
+      return;
+    }
+  } catch (e) { /* weiter versuchen */ }
+  setTimeout(poll, 1500);
+}
+poll();
+</script>
+{% endblock %}

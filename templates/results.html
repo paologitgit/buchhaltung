@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block title %}Resultate {{ r.plz }} {{ r.ort }} – Gig-Finder{% endblock %}
+{% block content %}
+<div class="results-head">
+  <h1>{{ r.locations|length }} Locations um {{ r.plz }} {{ r.ort }} ({{ r.radius_km }} km)</h1>
+  <div class="actions">
+    <a class="button" href="{{ url_for('results_csv', search_id=r.id) }}">CSV herunterladen</a>
+    <a class="button secondary" href="{{ url_for('index') }}">Neue Suche</a>
+  </div>
+</div>
+
+{% if not r.locations %}
+<p>Keine Locations gefunden. Versuche einen grösseren Umkreis oder mehr Kategorien.</p>
+{% else %}
+<div class="table-wrap">
+<table id="results">
+  <thead>
+    <tr>
+      <th data-sort="text">Name</th>
+      <th data-sort="text">Kategorie</th>
+      <th data-sort="text">Ort</th>
+      <th data-sort="num">km</th>
+      <th data-sort="text">E-Mail</th>
+      <th data-sort="text">Kontaktperson</th>
+      <th data-sort="text">Telefon</th>
+      <th data-sort="num">Eignung</th>
+      <th>Beschreibung</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for l in r.locations %}
+    <tr>
+      <td>
+        {% if l.website %}<a href="{{ l.website }}" target="_blank" rel="noopener">{{ l.name }}</a>
+        {% else %}{{ l.name }}{% endif %}
+      </td>
+      <td>{{ l.kategorie_label }}</td>
+      <td>{{ l.plz }} {{ l.ort }}</td>
+      <td data-value="{{ l.distanz_km if l.distanz_km is not none else 999 }}">
+        {{ l.distanz_km if l.distanz_km is not none else "–" }}</td>
+      <td>{% if l.email %}<a href="mailto:{{ l.email }}">{{ l.email }}</a>{% else %}–{% endif %}</td>
+      <td>{{ l.kontakt_name or "–" }}</td>
+      <td>{{ l.telefon or "–" }}</td>
+      <td data-value="{{ l.eignung if l.eignung is not none else 0 }}">
+        {% if l.eignung %}{{ "★" * l.eignung }}{% else %}–{% endif %}</td>
+      <td class="desc">{{ l.beschreibung or "" }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">Klick auf einen Spaltentitel sortiert die Tabelle.
+  {% set mit_mail = r.locations|selectattr("email")|list|length %}
+  {{ mit_mail }} von {{ r.locations|length }} Locations haben eine E-Mail-Adresse.</p>
+{% endif %}
+
+<script>
+document.querySelectorAll("#results th[data-sort]").forEach((th, idx) => {
+  th.addEventListener("click", () => {
+    const tbody = th.closest("table").querySelector("tbody");
+    const rows = [...tbody.querySelectorAll("tr")];
+    const numeric = th.dataset.sort === "num";
+    const asc = th.dataset.asc !== "true";
+    th.dataset.asc = asc;
+    rows.sort((a, b) => {
+      const ca = a.cells[idx], cb = b.cells[idx];
+      const va = numeric ? parseFloat(ca.dataset.value ?? ca.textContent) : ca.textContent.trim().toLowerCase();
+      const vb = numeric ? parseFloat(cb.dataset.value ?? cb.textContent) : cb.textContent.trim().toLowerCase();
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1);
+    });
+    rows.forEach(rw => tbody.appendChild(rw));
+  });
+});
+</script>
+{% endblock %}

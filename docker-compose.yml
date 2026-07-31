@@ -1,0 +1,10 @@
+services:
+  gigfinder:
+    build: .
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env
+    volumes:
+      - ./data/searches:/app/data/searches
+    restart: unless-stopped

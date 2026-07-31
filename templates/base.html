@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Gig-Finder{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <header>
+    <a href="{{ url_for('index') }}" class="brand">🎸 Gig-Finder</a>
+    <span class="tagline">Auftrittsorte für Musiker in der Schweiz</span>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+  <footer>
+    PLZ-Daten: GeoNames (CC-BY 4.0) · Locations: OpenStreetMap-Mitwirkende{% block footer_extra %}{% endblock %}
+  </footer>
+</body>
+</html>

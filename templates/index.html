@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Auftrittsorte finden</h1>
+
+{% if error %}<p class="error">{{ error }}</p>{% endif %}
+
+<form method="post" action="{{ url_for('start_search') }}">
+  <div class="row">
+    <label>
+      PLZ
+      <input name="plz" type="text" inputmode="numeric" pattern="[0-9]{4}"
+             placeholder="z.&nbsp;B. 8400" required autofocus>
+    </label>
+    <label>
+      Umkreis
+      <select name="radius">
+        <option value="10">10 km</option>
+        <option value="20" selected>20 km</option>
+        <option value="30">30 km</option>
+        <option value="50">50 km</option>
+      </select>
+    </label>
+  </div>
+
+  <h2>Kategorien</h2>
+  <div class="groups">
+    {% for group, cats in groups.items() %}
+    <fieldset>
+      <legend>{{ group }}</legend>
+      {% for c in cats %}
+      <label class="check">
+        <input type="checkbox" name="kategorien" value="{{ c.key }}"
+               {% if c.default %}checked{% endif %}>
+        {{ c.label }}
+        {% if not c.osm and not google_ok %}<span class="hint" title="Nur mit Google-API-Key">⚠</span>{% endif %}
+      </label>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+  </div>
+
+  <h2>Datenquellen</h2>
+  <div class="sources">
+    <label class="check"><input type="checkbox" checked disabled> OpenStreetMap (immer aktiv, kostenlos)</label>
+    <label class="check">
+      <input type="checkbox" name="google" {% if google_ok %}checked{% else %}disabled{% endif %}>
+      Google Places
+      {% if not google_ok %}<span class="hint">– kein API-Key konfiguriert (GOOGLE_PLACES_API_KEY in .env)</span>{% endif %}
+    </label>
+    <label class="check">
+      <input type="checkbox" name="claude" {% if claude_ok %}checked{% else %}disabled{% endif %}>
+      Claude-Beschreibungen &amp; Eignungs-Score
+      {% if not claude_ok %}<span class="hint">– kein API-Key konfiguriert (ANTHROPIC_API_KEY in .env)</span>{% endif %}
+    </label>
+  </div>
+
+  <button type="submit">Suchen</button>
+  <p class="hint">Die Suche liest die Websites der gefundenen Locations und kann je nach Anzahl 1–3 Minuten dauern.</p>
+</form>
+{% endblock %}
