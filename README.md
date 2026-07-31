@@ -64,10 +64,22 @@ Zur Sicherheit kannst Du in der Google-Konsole ein Budget-Limit setzen.
 2. Unter **API Keys** einen Key erstellen.
 3. Key in die `.env` eintragen: `ANTHROPIC_API_KEY=sk-ant-...`
 
+Auf der Suchseite steht neben dem Claude-Häkchen der Link **«Zugang jetzt
+testen»**. Der schickt eine einzige kleine Anfrage los und meldet im
+Klartext, ob es funktioniert – oder woran es scheitert (falscher Key,
+unbekanntes Modell, Limit erreicht). Damit siehst Du das Problem sofort,
+statt erst nach einer ganzen Suche ohne Beschreibungen.
+
+Schlägt die Anreicherung während einer Suche fehl, steht der Grund als
+Hinweis oben auf der Resultatseite – Beschreibungen fehlen nie
+kommentarlos.
+
 Kosten-Hinweis: Die Anreicherung kostet grob 1–2 Rappen pro Location,
 eine volle Suche mit 60 Locations also etwa 1 Franken. Standard-Modell ist
 `claude-opus-5`; mit `CLAUDE_MODEL=claude-haiku-4-5` in der `.env` wird es
-deutlich günstiger (dafür etwas weniger treffsicher).
+deutlich günstiger (dafür etwas weniger treffsicher). Modelle, die den
+`effort`-Parameter nicht unterstützen – etwa Haiku – werden automatisch
+erkannt und ohne diesen Parameter angefragt.
 
 ## Adressbuch
 

@@ -16,12 +16,30 @@ document.querySelectorAll("table th[data-sort]").forEach(th => {
     rows.sort((a, b) => {
       const ca = a.cells[idx], cb = b.cells[idx];
       const va = numeric ? parseFloat(ca.dataset.value ?? ca.textContent)
-                         : ca.textContent.trim().toLowerCase();
+                         : (ca.dataset.value ?? ca.textContent).trim().toLowerCase();
       const vb = numeric ? parseFloat(cb.dataset.value ?? cb.textContent)
-                         : cb.textContent.trim().toLowerCase();
+                         : (cb.dataset.value ?? cb.textContent).trim().toLowerCase();
       return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1);
     });
     rows.forEach(row => tbody.appendChild(row));
+  });
+});
+
+// Hinweis einblenden, wenn die Tabelle breiter ist als das Fenster –
+// sonst übersieht man die Spalten am rechten Rand.
+document.querySelectorAll(".table-wrap").forEach(wrap => {
+  const hinweis = document.createElement("p");
+  hinweis.className = "scroll-hint";
+  hinweis.textContent = "→ Die Tabelle lässt sich seitlich scrollen; rechts stehen weitere Spalten.";
+  wrap.after(hinweis);
+  const pruefen = () => {
+    hinweis.style.display = wrap.scrollWidth > wrap.clientWidth + 2 ? "" : "none";
+  };
+  pruefen();
+  window.addEventListener("resize", pruefen);
+  wrap.addEventListener("scroll", () => {
+    const amEnde = wrap.scrollLeft + wrap.clientWidth >= wrap.scrollWidth - 2;
+    hinweis.style.visibility = amEnde ? "hidden" : "visible";
   });
 });
 

@@ -122,26 +122,49 @@ def run_search(plz_code: str, radius_km: int, category_keys: list[str],
             loc["scrape_text"] = data["text"]
 
     # 4. Optional: Claude-Anreicherung
-    if use_claude and claude_enrich.available():
+    hinweise: list[str] = []
+    if use_claude and not claude_enrich.available():
+        hinweise.append(
+            "Beschreibungen übersprungen: Es ist kein ANTHROPIC_API_KEY "
+            "konfiguriert (siehe README).")
+    elif use_claude:
         candidates = [l for l in locations if l.get("scrape_text")]
+        ohne_text = len(locations) - len(candidates)
         report(f"Claude beschreibt {len(candidates)} Locations …")
+        fehler: dict[str, int] = {}
+        erfolge = 0
         with ThreadPoolExecutor(max_workers=ENRICH_WORKERS) as pool:
             futures = {pool.submit(claude_enrich.enrich, l): l for l in candidates}
             for fut in as_completed(futures):
                 loc = futures[fut]
                 try:
                     data = fut.result()
-                except Exception as exc:
+                except claude_enrich.EnrichmentError as exc:
                     log.warning("Claude %s: %s", loc.get("name"), exc)
+                    fehler[str(exc)] = fehler.get(str(exc), 0) + 1
+                    continue
+                except Exception as exc:
+                    log.exception("Claude %s", loc.get("name"))
+                    meldung = f"Unerwarteter Fehler: {exc}"
+                    fehler[meldung] = fehler.get(meldung, 0) + 1
                     continue
                 if not data:
                     continue
+                erfolge += 1
                 loc["beschreibung"] = data.get("beschreibung", "")
                 loc["eignung"] = data.get("eignung")
                 if data.get("email") and not loc["email"]:
                     loc["email"] = data["email"].lower()
                 if data.get("kontakt_name") and not loc["kontakt_name"]:
                     loc["kontakt_name"] = data["kontakt_name"]
+
+        for meldung, anzahl in sorted(fehler.items(), key=lambda x: -x[1])[:3]:
+            hinweise.append(
+                f"Beschreibung für {anzahl} Location(s) fehlgeschlagen – {meldung}")
+        if erfolge == 0 and not fehler and ohne_text:
+            hinweise.append(
+                "Keine Beschreibungen möglich: Für die gefundenen Locations "
+                "liess sich keine Website auslesen.")
 
     for loc in locations:
         loc.pop("scrape_text", None)
@@ -154,4 +177,5 @@ def run_search(plz_code: str, radius_km: int, category_keys: list[str],
         "radius_km": radius_km,
         "kategorien": category_keys,
         "locations": locations,
+        "hinweise": hinweise,
     }

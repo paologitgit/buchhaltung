@@ -4,7 +4,7 @@
 
 {% if error %}<p class="error">{{ error }}</p>{% endif %}
 
-<form method="post" action="{{ url_for('start_search') }}">
+<form method="post" action="{{ url_for('start_search') }}" class="card">
   <div class="row">
     <label>
       PLZ
@@ -53,6 +53,11 @@
       {% if not claude_ok %}<span class="hint">– kein API-Key konfiguriert (ANTHROPIC_API_KEY in .env)</span>{% endif %}
     </label>
   </div>
+  {% if claude_ok %}
+  <p class="hint">Modell: {{ claude_model }} –
+    <button type="submit" formaction="{{ url_for('claude_test') }}" formnovalidate
+            class="linklike">Zugang jetzt testen</button></p>
+  {% endif %}
 
   <button type="submit">Suchen</button>
   <p class="hint">Die Suche liest die Websites der gefundenen Locations und kann je nach Anzahl 1–3 Minuten dauern.</p>

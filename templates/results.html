@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% block main_class %}wide{% endblock %}
 {% block title %}Resultate {{ r.plz }} {{ r.ort }} – Gig-Finder{% endblock %}
 {% block content %}
 <div class="results-head">
@@ -8,6 +9,10 @@
     <a class="button secondary" href="{{ url_for('index') }}">Neue Suche</a>
   </div>
 </div>
+
+{% for hinweis in r.hinweise or [] %}
+<p class="flash warn">{{ hinweis }}</p>
+{% endfor %}
 
 {% if not r.locations %}
 <p>Keine Locations gefunden. Versuche einen grösseren Umkreis oder mehr Kategorien.</p>
@@ -22,7 +27,7 @@
               {% if neue %}checked{% endif %} title="Alle auswählen"></th>
         <th data-sort="text">Name</th>
         <th data-sort="text">Kategorie</th>
-        <th data-sort="text">Ort</th>
+        <th data-sort="text">Adresse</th>
         <th data-sort="num">km</th>
         <th data-sort="text">E-Mail</th>
         <th data-sort="text">Kontaktperson</th>
@@ -47,15 +52,18 @@
           {% else %}{{ l.name }}{% endif %}
         </td>
         <td>{{ l.kategorie_label }}</td>
-        <td>{{ l.plz }} {{ l.ort }}</td>
-        <td data-value="{{ l.distanz_km if l.distanz_km is not none else 999 }}">
+        <td class="ort" data-value="{{ l.plz }} {{ l.ort }} {{ l.adresse }}">
+          {% if l.adresse %}<span class="strasse">{{ l.adresse }}</span>{% endif %}
+          <span class="nowrap">{{ l.plz }} {{ l.ort }}</span></td>
+        <td class="nowrap" data-value="{{ l.distanz_km if l.distanz_km is not none else 999 }}">
           {{ l.distanz_km if l.distanz_km is not none else "–" }}</td>
-        <td>{% if l.email %}<a href="mailto:{{ l.email }}">{{ l.email }}</a>{% else %}–{% endif %}</td>
+        <td class="mail">{% if l.email %}<a href="mailto:{{ l.email }}">{{ l.email }}</a>{% else %}–{% endif %}</td>
         <td>{{ l.kontakt_name or "–" }}</td>
-        <td>{{ l.telefon or "–" }}</td>
-        <td data-value="{{ l.eignung if l.eignung is not none else 0 }}">
+        <td class="nowrap">{{ l.telefon or "–" }}</td>
+        <td class="nowrap" data-value="{{ l.eignung if l.eignung is not none else 0 }}">
           {% if l.eignung %}{{ "★" * l.eignung }}{% else %}–{% endif %}</td>
-        <td class="desc">{{ l.beschreibung or "" }}</td>
+        <td class="desc" title="{{ l.beschreibung or '' }}">
+          <span class="desc-text">{{ l.beschreibung or "" }}</span></td>
       </tr>
       {% endfor %}
     </tbody>

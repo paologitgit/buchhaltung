@@ -53,6 +53,7 @@ def index():
         groups=grouped(),
         google_ok=bool(google_places.api_key()),
         claude_ok=claude_enrich.available(),
+        claude_model=claude_enrich.model_name(),
     )
 
 
@@ -63,6 +64,7 @@ def start_search():
         return render_template("index.html", groups=grouped(),
                                google_ok=bool(google_places.api_key()),
                                claude_ok=claude_enrich.available(),
+                               claude_model=claude_enrich.model_name(),
                                error=f"«{plz_code}» ist keine bekannte Schweizer PLZ."), 400
     try:
         radius_km = max(1, min(50, int(request.form.get("radius", "20"))))
@@ -73,6 +75,7 @@ def start_search():
         return render_template("index.html", groups=grouped(),
                                google_ok=bool(google_places.api_key()),
                                claude_ok=claude_enrich.available(),
+                               claude_model=claude_enrich.model_name(),
                                error="Bitte mindestens eine Kategorie wählen."), 400
 
     import uuid
@@ -161,6 +164,18 @@ def results_csv(search_id):
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.route("/claude-test", methods=["POST"])
+def claude_test():
+    """Prüft den Claude-Zugang mit einer einzigen kleinen Anfrage."""
+    fehler = claude_enrich.check_access()
+    if fehler:
+        flash(f"Claude-Test fehlgeschlagen: {fehler}", "error")
+    else:
+        flash(f"Claude-Zugang funktioniert (Modell {claude_enrich.model_name()}). "
+              "Beschreibungen werden erstellt.", "ok")
+    return redirect(url_for("index"))
 
 
 @app.route("/adressbuch")

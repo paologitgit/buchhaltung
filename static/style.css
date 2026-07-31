@@ -34,6 +34,8 @@ header nav a.active { border-bottom: 2px solid var(--accent); color: var(--accen
 .uebernehmen { margin-top: 1rem; }
 .uebernehmen button { margin-top: 0; }
 th.pick, td.pick { width: 2.2rem; text-align: center; padding-right: 0; }
+th.del, td.del { width: 3rem; text-align: center; }
+.warn { color: #8a5a00; }
 tr.saved { color: var(--muted); }
 tr.saved td a { color: var(--muted); }
 .badge { color: #2e6b2e; font-weight: bold; }
@@ -47,11 +49,20 @@ button.delete {
 }
 button.delete:hover { background: #f7e8e8; }
 main { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }
+/* Tabellenseiten brauchen mehr Breite als das Suchformular */
+main.wide { max-width: 1600px; }
 h1 { font-size: 1.6rem; }
 h2 { font-size: 1.1rem; margin-top: 1.8rem; }
 footer { text-align: center; color: var(--muted); font-size: .8rem; padding: 2rem 1rem; }
 
-form { background: var(--card); border: 1px solid var(--line); border-radius: 8px; padding: 1.5rem 2rem; }
+/* Nur echte Eingabe-Formulare sehen wie eine Karte aus. Ein bare "form"-
+   Selektor würde auch die Mini-Formulare in Tabellenzellen (Lösch-Knopf)
+   und das Formular um die Resultat-Tabelle zur Karte machen. */
+form.card, form.import-form {
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: 8px; padding: 1.5rem 2rem;
+}
+td form { display: inline; margin: 0; padding: 0; border: none; background: none; }
 .row { display: flex; gap: 2rem; flex-wrap: wrap; }
 label { display: block; font-weight: bold; }
 input[type=text], select {
@@ -73,6 +84,12 @@ button, .button {
 button:hover, .button:hover { background: var(--accent-dark); }
 .button.secondary { background: transparent; color: var(--accent-dark); border: 1px solid var(--accent); }
 .hint { color: var(--muted); font-size: .85rem; font-weight: normal; }
+button.linklike {
+  margin: 0; padding: 0; background: none; border: none;
+  color: var(--accent-dark); font-size: inherit; font-family: inherit;
+  text-decoration: underline; cursor: pointer;
+}
+button.linklike:hover { background: none; color: var(--accent); }
 .error { color: #a02020; font-weight: bold; }
 
 .wait { text-align: center; padding: 3rem 0; }
@@ -86,10 +103,35 @@ button:hover, .button:hover { background: var(--accent-dark); }
 
 .results-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
 .actions .button { margin-top: 0; }
-.table-wrap { overflow-x: auto; background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+.table-wrap {
+  overflow-x: auto; background: var(--card);
+  border: 1px solid var(--line); border-radius: 8px;
+}
 table { border-collapse: collapse; width: 100%; font-size: .9rem; }
 th, td { padding: .5rem .7rem; text-align: left; vertical-align: top; border-bottom: 1px solid var(--line); }
-th { background: var(--bg); cursor: pointer; white-space: nowrap; position: sticky; top: 0; }
+th { background: var(--bg); white-space: nowrap; position: sticky; top: 0; }
+th[data-sort] { cursor: pointer; }
 th[data-sort]:hover { color: var(--accent-dark); }
+th[data-sort][data-asc]::after { content: " ▲"; font-size: .7em; }
+th[data-sort][data-asc="false"]::after { content: " ▼"; }
 td a { color: var(--accent-dark); }
-.desc { max-width: 320px; color: var(--muted); }
+tbody tr:last-child td { border-bottom: none; }
+
+/* Spalten, die nicht umbrechen dürfen (Telefon, Distanz, Sterne, PLZ/Ort) */
+.nowrap { white-space: nowrap; }
+/* Ortsspalte: Strasse auf eigener Zeile über PLZ und Ort */
+td.ort .strasse { display: block; }
+/* Name und E-Mail dürfen umbrechen, aber erst wenn es eng wird */
+table td:nth-child(1) { min-width: 9rem; }
+td.mail { word-break: break-word; min-width: 10rem; }
+/* Beschreibung: auf drei Zeilen begrenzt, voller Text im Tooltip.
+   Die Kürzung sitzt auf dem inneren span – ein display:-webkit-box auf der
+   Zelle selbst würde sie aus dem Tabellen-Layout herauslösen. */
+td.desc { color: var(--muted); min-width: 11rem; max-width: 26rem; }
+td.desc .desc-text {
+  display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3;
+  -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* Hinweis, wenn die Tabelle breiter ist als das Fenster */
+.scroll-hint { color: var(--muted); font-size: .85rem; margin: .4rem 0 0; }
