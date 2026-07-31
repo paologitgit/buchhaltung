@@ -22,6 +22,20 @@ header {
 }
 .brand { font-size: 1.4rem; font-weight: bold; color: var(--ink); text-decoration: none; }
 .tagline { color: var(--muted); font-style: italic; }
+header nav { margin-left: auto; display: flex; gap: 1.2rem; }
+header nav a { color: var(--ink); text-decoration: none; padding-bottom: .15rem; }
+header nav a:hover { color: var(--accent-dark); }
+header nav a.active { border-bottom: 2px solid var(--accent); color: var(--accent-dark); }
+.ok { color: #2e6b2e; font-weight: bold; }
+.import-form { display: flex; align-items: flex-end; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+.import-form button { margin-top: 0; }
+.import-form .hint { flex-basis: 100%; margin: 0; }
+input[type=file] { display: block; margin-top: .3rem; font-family: inherit; }
+button.delete {
+  margin: 0; padding: .15rem .5rem; font-size: .85rem;
+  background: transparent; color: #a02020; border: 1px solid #d8b5b5; border-radius: 4px;
+}
+button.delete:hover { background: #f7e8e8; }
 main { max-width: 1200px; margin: 2rem auto; padding: 0 1.5rem; }
 h1 { font-size: 1.6rem; }
 h2 { font-size: 1.1rem; margin-top: 1.8rem; }

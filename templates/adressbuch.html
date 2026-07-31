@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Adressbuch – Gig-Finder{% endblock %}
+{% block content %}
+<div class="results-head">
+  <h1>Adressbuch ({{ eintraege|length }} Adressen)</h1>
+  <div class="actions">
+    {% if eintraege %}
+    <a class="button" href="{{ url_for('adressbuch_csv') }}">CSV herunterladen</a>
+    {% endif %}
+  </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% for category, msg in messages %}
+    <p class="{{ 'error' if category == 'error' else 'ok' }}">{{ msg }}</p>
+  {% endfor %}
+{% endwith %}
+
+<form method="post" action="{{ url_for('adressbuch_import') }}"
+      enctype="multipart/form-data" class="import-form">
+  <label>
+    CSV importieren
+    <input type="file" name="datei" accept=".csv,text/csv" required>
+  </label>
+  <button type="submit">Importieren</button>
+  <p class="hint">Erwartet wird eine aus dem Gig-Finder exportierte CSV-Datei.
+    Duplikate (gleicher Name&nbsp;+&nbsp;PLZ oder gleiche E-Mail) werden erkannt und
+    übersprungen; fehlende Angaben bestehender Einträge werden dabei ergänzt.</p>
+</form>
+
+{% if eintraege %}
+<div class="table-wrap">
+<table id="results">
+  <thead>
+    <tr>
+      <th data-sort="text">Name</th>
+      <th data-sort="text">Kategorie</th>
+      <th data-sort="text">Ort</th>
+      <th data-sort="text">E-Mail</th>
+      <th data-sort="text">Kontaktperson</th>
+      <th data-sort="text">Telefon</th>
+      <th data-sort="num">Eignung</th>
+      <th>Beschreibung</th>
+      <th></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for e in eintraege %}
+    <tr>
+      <td>
+        {% if e.website %}<a href="{{ e.website }}" target="_blank" rel="noopener">{{ e.name }}</a>
+        {% else %}{{ e.name }}{% endif %}
+      </td>
+      <td>{{ e.kategorie or "–" }}</td>
+      <td>{{ e.plz }} {{ e.ort }}</td>
+      <td>{% if e.email %}<a href="mailto:{{ e.email }}">{{ e.email }}</a>{% else %}–{% endif %}</td>
+      <td>{{ e.kontakt_name or "–" }}</td>
+      <td>{{ e.telefon or "–" }}</td>
+      <td data-value="{{ e.eignung or 0 }}">
+        {% if e.eignung and e.eignung|int(0) %}{{ "★" * e.eignung|int }}{% else %}–{% endif %}</td>
+      <td class="desc">{{ e.beschreibung or "" }}</td>
+      <td>
+        <form method="post" action="{{ url_for('adressbuch_loeschen', entry_id=e.id) }}"
+              onsubmit="return confirm('«{{ e.name }}» wirklich löschen?');">
+          <button type="submit" class="delete" title="Eintrag löschen">✕</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+</div>
+<p class="hint">Klick auf einen Spaltentitel sortiert die Tabelle.</p>
+{% else %}
+<p>Noch keine Adressen gespeichert. Führe eine Suche durch, lade die CSV
+herunter und importiere sie hier – oder importiere eine bestehende Datei.</p>
+{% endif %}
+
+<script>
+document.querySelectorAll("#results th[data-sort]").forEach((th, idx) => {
+  th.addEventListener("click", () => {
+    const tbody = th.closest("table").querySelector("tbody");
+    const rows = [...tbody.querySelectorAll("tr")];
+    const numeric = th.dataset.sort === "num";
+    const asc = th.dataset.asc !== "true";
+    th.dataset.asc = asc;
+    rows.sort((a, b) => {
+      const ca = a.cells[idx], cb = b.cells[idx];
+      const va = numeric ? parseFloat(ca.dataset.value ?? ca.textContent) : ca.textContent.trim().toLowerCase();
+      const vb = numeric ? parseFloat(cb.dataset.value ?? cb.textContent) : cb.textContent.trim().toLowerCase();
+      return (va < vb ? -1 : va > vb ? 1 : 0) * (asc ? 1 : -1);
+    });
+    rows.forEach(rw => tbody.appendChild(rw));
+  });
+});
+</script>
+{% endblock %}

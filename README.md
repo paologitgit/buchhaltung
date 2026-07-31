@@ -69,6 +69,17 @@ eine volle Suche mit 60 Locations also etwa 1 Franken. Standard-Modell ist
 `claude-opus-5`; mit `CLAUDE_MODEL=claude-haiku-4-5` in der `.env` wird es
 deutlich günstiger (dafür etwas weniger treffsicher).
 
+## Adressbuch
+
+Unter dem Menüpunkt **Adressbuch** kannst Du exportierte CSV-Dateien
+importieren und die Adressen damit dauerhaft speichern (SQLite-Datenbank
+in `data/adressbuch.sqlite3`, überlebt Container-Neustarts). Duplikate –
+gleicher Name + PLZ oder gleiche E-Mail – werden beim Import erkannt und
+übersprungen; bringt der Import neue Angaben zu einem bestehenden Eintrag
+mit (z. B. eine E-Mail, die vorher fehlte), werden sie ergänzt. Das ganze
+Adressbuch lässt sich wieder als CSV exportieren, einzelne Einträge kann
+man löschen.
+
 ## CSV-Export
 
 Der Export ist Semikolon-getrennt mit UTF-8-BOM und öffnet damit direkt

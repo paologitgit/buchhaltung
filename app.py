@@ -1,15 +1,17 @@
 """Gig-Finder – findet Auftrittsorte für Musiker in der Schweiz."""
 import logging
+import os
+import secrets
 import threading
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from flask import (Flask, Response, abort, redirect, render_template, request,
-                   url_for)
+from flask import (Flask, Response, abort, flash, redirect, render_template,
+                   request, url_for)
 
-from gigfinder import claude_enrich, plz, search, storage
+from gigfinder import addressbook, claude_enrich, plz, search, storage
 from gigfinder.categories import grouped
 from gigfinder.sources import google_places
 
@@ -17,6 +19,8 @@ logging.basicConfig(level=logging.INFO,
                     format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 
 app = Flask(__name__)
+# nur für Flash-Meldungen; die App verwaltet keine Logins
+app.secret_key = os.environ.get("FLASK_SECRET") or secrets.token_hex(16)
 
 # Laufende Suchen (In-Memory; die App läuft in einem einzelnen Prozess)
 _jobs: dict[str, dict] = {}
@@ -124,6 +128,53 @@ def results_csv(search_id):
         mimetype="text/csv; charset=utf-8",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.route("/adressbuch")
+def adressbuch():
+    return render_template("adressbuch.html", eintraege=addressbook.list_all())
+
+
+@app.route("/adressbuch/import", methods=["POST"])
+def adressbuch_import():
+    upload = request.files.get("datei")
+    if upload is None or not upload.filename:
+        flash("Bitte eine CSV-Datei auswählen.", "error")
+        return redirect(url_for("adressbuch"))
+    try:
+        stats = addressbook.import_csv(upload.read())
+    except ValueError as exc:
+        flash(str(exc), "error")
+        return redirect(url_for("adressbuch"))
+    except Exception:
+        logging.exception("CSV-Import fehlgeschlagen")
+        flash("Die Datei konnte nicht gelesen werden.", "error")
+        return redirect(url_for("adressbuch"))
+    teile = [f"{stats['neu']} neu importiert"]
+    if stats["ergaenzt"]:
+        teile.append(f"{stats['ergaenzt']} bestehende ergänzt")
+    if stats["uebersprungen"]:
+        teile.append(f"{stats['uebersprungen']} Duplikate übersprungen")
+    if stats["fehler"]:
+        teile.append(f"{stats['fehler']} Zeilen ohne Namen ignoriert")
+    flash(", ".join(teile) + ".", "ok")
+    return redirect(url_for("adressbuch"))
+
+
+@app.route("/adressbuch/csv")
+def adressbuch_csv():
+    return Response(
+        addressbook.to_csv(),
+        mimetype="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="adressbuch.csv"'},
+    )
+
+
+@app.route("/adressbuch/loeschen/<int:entry_id>", methods=["POST"])
+def adressbuch_loeschen(entry_id):
+    addressbook.delete(entry_id)
+    flash("Eintrag gelöscht.", "ok")
+    return redirect(url_for("adressbuch"))
 
 
 if __name__ == "__main__":

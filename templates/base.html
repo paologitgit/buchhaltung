@@ -10,6 +10,12 @@
   <header>
     <a href="{{ url_for('index') }}" class="brand">🎸 Gig-Finder</a>
     <span class="tagline">Auftrittsorte für Musiker in der Schweiz</span>
+    <nav>
+      <a href="{{ url_for('index') }}"
+         {% if request.endpoint == 'index' %}class="active"{% endif %}>Suche</a>
+      <a href="{{ url_for('adressbuch') }}"
+         {% if request.endpoint and request.endpoint.startswith('adressbuch') %}class="active"{% endif %}>Adressbuch</a>
+    </nav>
   </header>
   <main>
     {% block content %}{% endblock %}

@@ -6,5 +6,6 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data/searches:/app/data/searches
+      # ganzes data/-Verzeichnis: Suchergebnisse + Adressbuch-Datenbank
+      - ./data:/app/data
     restart: unless-stopped
