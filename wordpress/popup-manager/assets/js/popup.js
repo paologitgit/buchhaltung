@@ -245,5 +245,22 @@
 		}
 	} );
 
-	configs.forEach( setup );
+	/**
+	 * Startet erst, wenn das Markup im Dokument steht. Nötig, falls ein
+	 * Theme oder ein Optimierungs-Plugin die Skripte vorzieht.
+	 *
+	 * @param {Function} fn Startfunktion.
+	 * @return {void}
+	 */
+	function ready( fn ) {
+		if ( 'loading' === document.readyState ) {
+			document.addEventListener( 'DOMContentLoaded', fn );
+		} else {
+			fn();
+		}
+	}
+
+	ready( function () {
+		configs.forEach( setup );
+	} );
 }() );

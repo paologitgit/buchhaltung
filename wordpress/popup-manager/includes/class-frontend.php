@@ -34,7 +34,9 @@ class Frontend {
 	 */
 	public function __construct() {
 		add_action( 'wp_enqueue_scripts', array( $this, 'prepare' ) );
-		add_action( 'wp_footer', array( $this, 'render' ), 100 );
+		// Priorität unter 20: WordPress gibt die Footer-Skripte bei 20 aus,
+		// das Markup muss vorher im Dokument stehen.
+		add_action( 'wp_footer', array( $this, 'render' ), 5 );
 	}
 
 	/**

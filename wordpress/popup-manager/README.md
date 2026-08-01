@@ -106,6 +106,23 @@ ID des Popups ersetzen, sie steht in der Beschriftung des Feldes:
 Treffen auf einer Seite mehrere Popups zu, erscheinen sie nacheinander: das
 nächste öffnet sich erst, wenn das vorherige geschlossen wurde.
 
+## Wenn nichts erscheint
+
+Der Reihe nach prüfen:
+
+1. **Ist das Popup veröffentlicht?** Entwürfe und Papierkorb-Einträge
+   erscheinen nie.
+2. **Vorschau-Link testen** (in der Popup-Liste oder im Editor). Erscheint
+   das Popup dort, liegt es an Platzierung oder Häufigkeit, nicht am Plugin.
+3. **Platzierung**: Steht „Nur auf ausgewählten Seiten", ohne dass eine
+   Seite markiert ist, erscheint das Popup nirgends.
+4. **Häufigkeit**: Bei „einmal pro Besuch" oder „alle X Tage" wurde das
+   Popup womöglich schon gezeigt. Ein privates Browserfenster zeigt es
+   wieder.
+5. **Caching-Plugin** leeren, falls eines aktiv ist.
+6. **Theme**: Das Plugin hängt sich in `wp_footer()` ein. Themes, die
+   diesen Aufruf weglassen, sind fehlerhaft und verhindern die Ausgabe.
+
 ## Aufbau
 
 ```
