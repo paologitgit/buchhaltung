@@ -1,0 +1,126 @@
+/**
+ * Popup Manager – Frontend
+ *
+ * Das Popup sitzt immer mittig im Bildschirm. Breite und maximale Höhe
+ * kommen als CSS-Variablen aus den Einstellungen.
+ */
+
+.pm-popup {
+	position: fixed;
+	inset: 0;
+	z-index: 999999;
+	display: none;
+	align-items: center;
+	justify-content: center;
+	padding: 20px;
+	box-sizing: border-box;
+}
+
+.pm-popup.is-open {
+	display: flex;
+}
+
+.pm-popup__overlay {
+	position: absolute;
+	inset: 0;
+	background: rgba(0, 0, 0, 0.6);
+	animation: pm-fade-in 0.2s ease-out;
+}
+
+.pm-popup__box {
+	position: relative;
+	box-sizing: border-box;
+	width: var(--pm-width, 600px);
+	max-width: 100%;
+	max-height: var(--pm-max-height, calc(100vh - 40px));
+	overflow-y: auto;
+	padding: 32px;
+	background: #fff;
+	color: #1a1a1a;
+	border-radius: 8px;
+	box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+	animation: pm-pop-in 0.22s ease-out;
+}
+
+.pm-popup__close {
+	position: absolute;
+	top: 8px;
+	right: 8px;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	margin: 0;
+	font-size: 26px;
+	line-height: 1;
+	color: #555;
+	background: transparent;
+	border: 0;
+	border-radius: 50%;
+	cursor: pointer;
+}
+
+.pm-popup__close:hover,
+.pm-popup__close:focus-visible {
+	color: #000;
+	background: rgba(0, 0, 0, 0.07);
+}
+
+.pm-popup__content > *:first-child {
+	margin-top: 0;
+}
+
+.pm-popup__content > *:last-child {
+	margin-bottom: 0;
+}
+
+.pm-popup__content img {
+	max-width: 100%;
+	height: auto;
+	display: block;
+}
+
+/* Verhindert das Scrollen der Seite hinter dem offenen Popup. */
+body.pm-popup-open {
+	overflow: hidden;
+}
+
+@keyframes pm-fade-in {
+	from {
+		opacity: 0;
+	}
+
+	to {
+		opacity: 1;
+	}
+}
+
+@keyframes pm-pop-in {
+	from {
+		opacity: 0;
+		transform: translateY(12px) scale(0.98);
+	}
+
+	to {
+		opacity: 1;
+		transform: none;
+	}
+}
+
+@media (prefers-reduced-motion: reduce) {
+
+	.pm-popup__overlay,
+	.pm-popup__box {
+		animation: none;
+	}
+}
+
+@media (max-width: 600px) {
+
+	.pm-popup {
+		padding: 12px;
+	}
+
+	.pm-popup__box {
+		padding: 24px 20px;
+	}
+}
