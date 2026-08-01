@@ -214,6 +214,37 @@ class Frontend {
 	}
 
 	/**
+	 * Hex-Farbe und Deckkraft in einen rgba()-Wert übersetzen.
+	 *
+	 * @param string $hex     Farbe als #rgb oder #rrggbb.
+	 * @param int    $opacity Deckkraft in Prozent.
+	 * @return string
+	 */
+	private function rgba( $hex, $opacity ) {
+		$hex = ltrim( (string) $hex, '#' );
+
+		if ( 3 === strlen( $hex ) ) {
+			$hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2];
+		}
+
+		if ( 6 !== strlen( $hex ) || ! ctype_xdigit( $hex ) ) {
+			$hex = '000000';
+		}
+
+		$opacity = max( 0, min( 100, (int) $opacity ) );
+
+		return sprintf(
+			'rgba(%d,%d,%d,%s)',
+			hexdec( substr( $hex, 0, 2 ) ),
+			hexdec( substr( $hex, 2, 2 ) ),
+			hexdec( substr( $hex, 4, 2 ) ),
+			// number_format statt Float-Ausgabe: liefert unabhängig von der
+			// Locale einen Punkt als Dezimaltrennzeichen.
+			number_format( $opacity / 100, 2, '.', '' )
+		);
+	}
+
+	/**
 	 * Markup eines einzelnen Popups.
 	 *
 	 * @param \WP_Post $popup Popup.
@@ -229,15 +260,26 @@ class Frontend {
 			$style .= sprintf( '--pm-max-height:%dpx;', $max_height );
 		}
 
+		$style .= sprintf(
+			'--pm-overlay:%s;',
+			$this->rgba(
+				Plugin::meta( $popup->ID, 'overlay_color' ),
+				(int) Plugin::meta( $popup->ID, 'overlay_opacity' )
+			)
+		);
+
+		$style .= sprintf( '--pm-bg:%s;', Plugin::meta( $popup->ID, 'box_bg_color' ) );
+		$style .= sprintf( '--pm-text:%s;', Plugin::meta( $popup->ID, 'box_text_color' ) );
+
 		$content = apply_filters( 'pm_popup_content', wpautop( do_shortcode( $popup->post_content ) ), $popup );
 		$title   = get_the_title( $popup );
 		?>
 		<div class="pm-popup" id="pm-popup-<?php echo (int) $popup->ID; ?>"
-			data-pm-id="<?php echo (int) $popup->ID; ?>" hidden>
+			data-pm-id="<?php echo (int) $popup->ID; ?>"
+			style="<?php echo esc_attr( $style ); ?>" hidden>
 			<div class="pm-popup__overlay" data-pm-overlay></div>
 			<div class="pm-popup__box" role="dialog" aria-modal="true"
-				aria-label="<?php echo esc_attr( $title ); ?>"
-				style="<?php echo esc_attr( $style ); ?>">
+				aria-label="<?php echo esc_attr( $title ); ?>">
 
 				<?php if ( Plugin::meta( $popup->ID, 'close_button' ) ) : ?>
 					<button type="button" class="pm-popup__close" data-pm-close

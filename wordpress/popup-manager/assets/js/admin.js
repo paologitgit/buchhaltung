@@ -32,9 +32,46 @@
 		return checked ? checked.value : 'all';
 	}
 
+	/**
+	 * WordPress-Farbwähler aktivieren. Ohne jQuery bleibt das Textfeld
+	 * bestehen, in das sich der Hex-Wert direkt eintragen lässt.
+	 *
+	 * @return {void}
+	 */
+	function initColorPickers() {
+		var $ = window.jQuery;
+
+		if ( ! $ || ! $.fn || ! $.fn.wpColorPicker ) {
+			return;
+		}
+
+		$( '.pm-color' ).wpColorPicker();
+	}
+
+	/**
+	 * Prozentwert neben dem Schieberegler mitführen.
+	 *
+	 * @return {void}
+	 */
+	function initOpacity() {
+		var slider = document.querySelector( '[data-pm-opacity]' );
+		var output = document.querySelector( '[data-pm-opacity-value]' );
+
+		if ( ! slider || ! output ) {
+			return;
+		}
+
+		slider.addEventListener( 'input', function () {
+			output.textContent = slider.value + ' %';
+		} );
+	}
+
 	document.addEventListener( 'DOMContentLoaded', function () {
 		var whereInputs = document.querySelectorAll( '[data-pm-where]' );
 		var frequency = document.querySelector( '[data-pm-frequency]' );
+
+		initColorPickers();
+		initOpacity();
 
 		if ( ! whereInputs.length && ! frequency ) {
 			return;

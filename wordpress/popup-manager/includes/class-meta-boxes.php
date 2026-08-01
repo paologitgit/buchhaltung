@@ -26,6 +26,34 @@ class Meta_Boxes {
 		add_action( 'add_meta_boxes', array( $this, 'register' ) );
 		add_action( 'save_post_' . Plugin::POST_TYPE, array( $this, 'save' ), 10, 2 );
 		add_action( 'admin_enqueue_scripts', array( $this, 'assets' ) );
+		add_action( 'admin_notices', array( $this, 'forced_close_notice' ) );
+	}
+
+	/**
+	 * Hinweis, wenn der Schliessen-Button beim Speichern wieder aktiviert
+	 * wurde, weil sonst keine Möglichkeit zum Schliessen übrig war.
+	 *
+	 * @return void
+	 */
+	public function forced_close_notice() {
+		$screen = get_current_screen();
+
+		if ( ! $screen || Plugin::POST_TYPE !== $screen->post_type || 'post' !== $screen->base ) {
+			return;
+		}
+
+		$post_id = isset( $_GET['post'] ) ? absint( $_GET['post'] ) : 0; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- Nur zum Lesen der Bildschirm-ID.
+
+		if ( ! $post_id || ! get_transient( 'pm_forced_close_' . $post_id ) ) {
+			return;
+		}
+
+		delete_transient( 'pm_forced_close_' . $post_id );
+
+		printf(
+			'<div class="notice notice-warning is-dismissible"><p>%s</p></div>',
+			esc_html__( 'Der Schliessen-Button wurde wieder aktiviert: ohne Button, ohne Hintergrundklick und ohne automatisches Schliessen käme ein Besucher nicht mehr aus dem Popup heraus. Aktiviere eine der anderen Möglichkeiten, wenn du das Kreuz ausblenden möchtest.', 'popup-manager' )
+		);
 	}
 
 	/**
@@ -61,17 +89,19 @@ class Meta_Boxes {
 			return;
 		}
 
+		wp_enqueue_style( 'wp-color-picker' );
+
 		wp_enqueue_style(
 			'popup-manager-admin',
 			PM_PLUGIN_URL . 'assets/css/admin.css',
-			array(),
+			array( 'wp-color-picker' ),
 			PM_VERSION
 		);
 
 		wp_enqueue_script(
 			'popup-manager-admin',
 			PM_PLUGIN_URL . 'assets/js/admin.js',
-			array(),
+			array( 'wp-color-picker', 'jquery' ),
 			PM_VERSION,
 			true
 		);
@@ -98,6 +128,11 @@ class Meta_Boxes {
 		$width          = Plugin::meta( $post->ID, 'width' );
 		$max_height     = Plugin::meta( $post->ID, 'max_height' );
 		$custom_css     = Plugin::meta( $post->ID, 'custom_css' );
+
+		$overlay_color   = Plugin::meta( $post->ID, 'overlay_color' );
+		$overlay_opacity = Plugin::meta( $post->ID, 'overlay_opacity' );
+		$box_bg_color    = Plugin::meta( $post->ID, 'box_bg_color' );
+		$box_text_color  = Plugin::meta( $post->ID, 'box_text_color' );
 
 		$where_options = array(
 			'all'     => __( 'Auf der ganzen Website', 'popup-manager' ),
@@ -214,6 +249,45 @@ class Meta_Boxes {
 
 				<p class="description">
 					<?php esc_html_e( 'Das Popup ist immer mittig im Bildschirm. Auf schmalen Bildschirmen wird die Breite automatisch reduziert, damit nichts abgeschnitten wird.', 'popup-manager' ); ?>
+				</p>
+			</fieldset>
+
+			<fieldset class="pm-section">
+				<legend><?php esc_html_e( 'Farben', 'popup-manager' ); ?></legend>
+
+				<p class="pm-row">
+					<label for="pm_overlay_color"><?php esc_html_e( 'Hintergrund hinter dem Popup', 'popup-manager' ); ?></label>
+					<input type="text" id="pm_overlay_color" name="pm_overlay_color" class="pm-color"
+						value="<?php echo esc_attr( $overlay_color ); ?>"
+						data-default-color="#000000">
+				</p>
+
+				<p class="pm-row">
+					<label for="pm_overlay_opacity"><?php esc_html_e( 'Deckkraft des Hintergrunds', 'popup-manager' ); ?></label>
+					<input type="range" id="pm_overlay_opacity" name="pm_overlay_opacity"
+						min="0" max="100" step="1" value="<?php echo esc_attr( $overlay_opacity ); ?>"
+						data-pm-opacity>
+					<output for="pm_overlay_opacity" data-pm-opacity-value>
+						<?php echo esc_html( $overlay_opacity . ' %' ); ?>
+					</output>
+				</p>
+
+				<p class="pm-row">
+					<label for="pm_box_bg_color"><?php esc_html_e( 'Hintergrundfarbe des Popups', 'popup-manager' ); ?></label>
+					<input type="text" id="pm_box_bg_color" name="pm_box_bg_color" class="pm-color"
+						value="<?php echo esc_attr( $box_bg_color ); ?>"
+						data-default-color="#ffffff">
+				</p>
+
+				<p class="pm-row">
+					<label for="pm_box_text_color"><?php esc_html_e( 'Textfarbe im Popup', 'popup-manager' ); ?></label>
+					<input type="text" id="pm_box_text_color" name="pm_box_text_color" class="pm-color"
+						value="<?php echo esc_attr( $box_text_color ); ?>"
+						data-default-color="#1a1a1a">
+				</p>
+
+				<p class="description">
+					<?php esc_html_e( 'Deckkraft 0 % macht den Hintergrund vollständig durchsichtig, 100 % deckt die Seite dahinter ganz ab. Der Schliessen-Button übernimmt die Textfarbe.', 'popup-manager' ); ?>
 				</p>
 			</fieldset>
 
@@ -345,9 +419,12 @@ class Meta_Boxes {
 			$values[ $key ] = Plugin::sanitize( $key, $raw );
 		}
 
-		// Ein Popup muss schliessbar bleiben.
+		// Ein Popup muss schliessbar bleiben. Der Eingriff wird dem
+		// Bearbeiter danach als Hinweis angezeigt, statt still zu geschehen.
 		if ( ! $values['close_button'] && ! $values['close_overlay'] && $values['auto_close'] < 1 ) {
 			$values['close_button'] = 1;
+
+			set_transient( 'pm_forced_close_' . $post_id, 1, MINUTE_IN_SECONDS );
 		}
 
 		foreach ( $values as $key => $value ) {

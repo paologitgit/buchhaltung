@@ -145,6 +145,26 @@ final class Plugin {
 				'max'     => 2000,
 			),
 
+			// Farben.
+			'overlay_color'   => array(
+				'type'    => 'color',
+				'default' => '#000000',
+			),
+			'overlay_opacity' => array(
+				'type'    => 'int',
+				'default' => 60,
+				'min'     => 0,
+				'max'     => 100,
+			),
+			'box_bg_color'    => array(
+				'type'    => 'color',
+				'default' => '#ffffff',
+			),
+			'box_text_color'  => array(
+				'type'    => 'color',
+				'default' => '#1a1a1a',
+			),
+
 			// Gestaltung.
 			'custom_css'     => array(
 				'type'    => 'css',
@@ -216,6 +236,11 @@ final class Plugin {
 
 			case 'select':
 				return in_array( $value, $field['options'], true ) ? $value : $field['default'];
+
+			case 'color':
+				$color = sanitize_hex_color( trim( (string) $value ) );
+
+				return $color ? $color : $field['default'];
 
 			case 'ids':
 				$ids = array_filter( array_map( 'absint', preg_split( '/[^0-9]+/', (string) $value ) ) );

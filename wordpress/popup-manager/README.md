@@ -10,6 +10,7 @@ Einfaches Popup-Plugin: Inhalt kommt aus dem normalen WordPress-Editor
 | Wo soll das Popup erscheinen | Ganze Website, nur Startseite, nur ausgewählte Seiten oder überall ausser den ausgewählten Seiten |
 | Wegklicken oder von selbst verschwinden | Schliessen-Button, Klick auf den Hintergrund, Escape-Taste, automatisch nach X Sekunden – frei kombinierbar |
 | Bilder oder Text mit CSS | WordPress-Editor für den Inhalt, pro Popup ein eigenes CSS-Feld |
+| Farben | Hintergrund hinter dem Popup mit Farbe und Deckkraft, dazu Hintergrund- und Textfarbe des Popups |
 | Platzierung | Immer mittig, auf schmalen Bildschirmen automatisch schmaler |
 | Grösse | Breite in Pixel, optional maximale Höhe |
 
@@ -51,13 +52,17 @@ Bearbeiter sichtbar.
 
 * **Anzeigen nach** – Sekunden nach dem Laden der Seite, `0` = sofort.
 * **Automatisch schliessen nach** – Sekunden, `0` = bleibt offen.
-* **Schliessen-Button (×)**
+* **Schliessen-Button (×)** – abschaltbar
 * **Klick auf den Hintergrund schliesst das Popup**
 
 Die Escape-Taste schliesst das Popup immer, sobald eine der beiden manuellen
-Schliessmöglichkeiten aktiv ist. Wird alles deaktiviert und ist kein
-automatisches Schliessen eingestellt, aktiviert das Plugin beim Speichern
-den Schliessen-Button – sonst käme der Besucher nicht mehr weiter.
+Schliessmöglichkeiten aktiv ist.
+
+Das Kreuz lässt sich ausblenden, solange eine andere Möglichkeit zum
+Schliessen bleibt – Hintergrundklick oder automatisches Schliessen. Wird
+alles zusammen deaktiviert, schaltet das Plugin den Schliessen-Button beim
+Speichern wieder ein und weist mit einem Hinweis darauf hin; sonst käme ein
+Besucher nicht mehr aus dem Popup heraus.
 
 ### Wie oft pro Besucher?
 
@@ -70,6 +75,18 @@ Caching-Plugins. Wer seine Browserdaten löscht, sieht das Popup erneut.
 Breite in Pixel; das Popup wird nie breiter als das Fenster. Maximale Höhe
 `0` bedeutet: so hoch wie der Inhalt, maximal die Fensterhöhe. Längerer
 Inhalt wird im Popup scrollbar.
+
+### Farben
+
+* **Hintergrund hinter dem Popup** – Farbe der Fläche, die die Seite
+  abdeckt, mit eigener **Deckkraft** von 0 bis 100 %. `0 %` lässt die Seite
+  unverändert durchscheinen, `100 %` deckt sie vollständig ab.
+* **Hintergrundfarbe des Popups**
+* **Textfarbe im Popup** – der Schliessen-Button übernimmt diese Farbe, das
+  Kreuz bleibt dadurch auch auf dunklem Grund sichtbar.
+
+Für alles Weitere – Rahmen, Schatten, Abstände, Schriften – ist das
+CSS-Feld darunter da.
 
 ### Eigenes CSS
 
