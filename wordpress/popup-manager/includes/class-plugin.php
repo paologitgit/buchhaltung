@@ -198,6 +198,18 @@ final class Plugin {
 			return (int) $value;
 		}
 
+		// Auch beim Lesen prüfen, nicht nur beim Speichern: Meta-Werte
+		// können von aussen in die Datenbank gelangen (anderes Plugin,
+		// Migration, WP-CLI). "frequency" landet im Frontend in einem
+		// <script>-Block, "custom_css" in einem <style>-Block.
+		if ( 'select' === $field['type'] ) {
+			return in_array( $value, $field['options'], true ) ? $value : $field['default'];
+		}
+
+		if ( 'color' === $field['type'] || 'css' === $field['type'] ) {
+			return self::sanitize( $key, $value );
+		}
+
 		return $value;
 	}
 
