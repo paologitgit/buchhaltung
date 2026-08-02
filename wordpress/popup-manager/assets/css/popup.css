@@ -42,6 +42,13 @@
 	animation: pm-pop-in 0.22s ease-out;
 }
 
+/* Der Rahmen bekommt beim Öffnen nur programmatisch den Fokus, damit
+   Screenreader im Popup starten. Er ist kein Bedienelement und per Tab
+   nicht erreichbar, deshalb bleibt er ohne sichtbaren Fokusring. */
+.pm-popup__box:focus {
+	outline: none;
+}
+
 .pm-popup__close {
 	position: absolute;
 	top: 8px;
@@ -62,9 +69,15 @@
 	cursor: pointer;
 }
 
-.pm-popup__close:hover,
+.pm-popup__close:hover {
+	opacity: 1;
+}
+
+/* Nur bei Tastaturbedienung sichtbar, nicht beim Klicken mit der Maus. */
 .pm-popup__close:focus-visible {
 	opacity: 1;
+	outline: 2px solid currentColor;
+	outline-offset: 2px;
 }
 
 .pm-popup__content > *:first-child {

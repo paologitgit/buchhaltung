@@ -170,6 +170,10 @@ Ein neues Einstellungsfeld braucht drei Stellen: Eintrag in
 * Barrierefreiheit: `role="dialog"`, Fokus bleibt im offenen Popup, Escape
   schliesst, der Fokus kehrt danach an die vorherige Stelle zurück.
   Animationen entfallen bei aktivierter Einstellung „Bewegung reduzieren".
+* Beim Öffnen erhält der Popup-Rahmen den Fokus, damit Screenreader im
+  Popup beginnen. Er zeigt dabei bewusst keinen Fokusring – sonst läge
+  beim Erscheinen ein blauer Rahmen um das Popup. Per Tab erreichbare
+  Elemente wie der Schliessen-Button behalten ihren Fokusring.
 * **Löschen des Plugins** (nicht Deaktivieren) entfernt auch alle
   angelegten Popups.
 

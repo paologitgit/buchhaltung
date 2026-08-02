@@ -118,15 +118,15 @@
 
 		markSeen( item.cfg );
 
+		// Fokus auf den Rahmen, nicht auf den Schliessen-Button: sonst
+		// zeichnet der Browser beim Öffnen einen Fokusring um das Kreuz.
+		// Der Rahmen selbst ist per CSS ringfrei, per Tab erreichbare
+		// Elemente behalten ihren Ring.
 		var box = item.el.querySelector( '.pm-popup__box' );
-		var target = item.el.querySelector( '.pm-popup__close' ) || box;
 
-		if ( target ) {
-			if ( target === box ) {
-				box.setAttribute( 'tabindex', '-1' );
-			}
-
-			target.focus();
+		if ( box ) {
+			box.setAttribute( 'tabindex', '-1' );
+			box.focus();
 		}
 
 		if ( item.cfg.autoClose > 0 ) {
