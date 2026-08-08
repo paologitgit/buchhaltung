@@ -4,6 +4,14 @@ from django.db import models
 class CompanySettings(models.Model):
     """Singleton (immer pk=1) mit firmenweiten Einstellungen."""
 
+    firmenname = models.CharField(
+        max_length=120,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Firmenname",
+        help_text='Erscheint im Kopf der PDF-Berichte, z.B. "Muster GmbH, Chur".',
+    )
     mwst_pflichtig = models.BooleanField(
         default=True,
         verbose_name="MWST-pflichtig",

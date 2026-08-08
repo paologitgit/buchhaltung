@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponseBadRequest
+from django.http import FileResponse, HttpResponseBadRequest
 from django.shortcuts import get_object_or_404, redirect, render
 
 from core.decorators import owner_required
@@ -11,6 +11,7 @@ from .analytics import build_income_expense_chart, monthly_income_expense, top_e
 from .export import export_journal_csv, export_journal_xlsx, export_journal_zip
 from .forms import FiscalYearForm
 from .models import Account, FiscalYear, JournalEntry
+from .pdf_reports import append_belege, jahresabschluss_pdf, kontoblaetter_pdf
 from .reports import bilanz, erfolgsrechnung, kontoblatt, saldobilanz
 
 
@@ -176,3 +177,28 @@ def bericht_kontoblatt(request):
             "data": data,
         },
     )
+
+
+@login_required
+def bericht_pdf(request, report):
+    _, fiscal_year = _resolve_fiscal_year(request)
+    if fiscal_year is None:
+        return HttpResponseBadRequest("Kein Geschäftsjahr vorhanden.")
+
+    year_label = fiscal_year.start_date.strftime("%Y")
+    if report == "kontoblaetter":
+        buffer, _belege = kontoblaetter_pdf(fiscal_year)
+        filename = f"Kontoblaetter_{year_label}.pdf"
+    elif report == "kontoblaetter-mit-belegen":
+        buffer, numbered_belege = kontoblaetter_pdf(fiscal_year)
+        buffer = append_belege(buffer, numbered_belege)
+        filename = f"Kontoblaetter_{year_label}_mit_Belegen.pdf"
+    elif report == "jahresabschluss":
+        buffer = jahresabschluss_pdf(fiscal_year)
+        filename = f"Bilanz_Erfolgsrechnung_{year_label}.pdf"
+    else:
+        return HttpResponseBadRequest("Unbekannter Bericht.")
+
+    response = FileResponse(buffer, content_type="application/pdf")
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response

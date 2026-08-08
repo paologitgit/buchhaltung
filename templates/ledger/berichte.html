@@ -33,6 +33,18 @@
     <div class="report-card-desc">Alle Buchungen eines einzelnen Kontos mit laufendem Saldo.</div>
   </a>
 </div>
+
+<h2>PDF-Dokumente (für die Treuhänderin)</h2>
+<p>
+  <a class="btn" href="{% url 'bericht_pdf' 'kontoblaetter' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">Kontoblätter (PDF)</a>
+  <a class="btn" href="{% url 'bericht_pdf' 'kontoblaetter-mit-belegen' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">Kontoblätter mit Belegen (PDF)</a>
+  <a class="btn" href="{% url 'bericht_pdf' 'jahresabschluss' %}?geschaeftsjahr={{ selected_fiscal_year.id }}">Bilanz + Erfolgsrechnung (PDF)</a>
+</p>
+<p class="muted">
+  Kontoblätter: alle bebuchten Konten in einem Dokument, mit Beleg-Nummern.
+  "Mit Belegen": zusätzlich alle Belege als nummerierte Seiten angehängt.
+  Bilanz + Erfolgsrechnung: mit Vorjahresvergleich, sofern ein Vorjahres-Geschäftsjahr erfasst ist.
+</p>
 {% else %}
 <p class="muted">Noch kein Geschäftsjahr vorhanden. Lege zuerst eines an.</p>
 {% endif %}

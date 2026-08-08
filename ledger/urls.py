@@ -15,4 +15,5 @@ urlpatterns = [
     path("berichte/erfolgsrechnung/", views.bericht_erfolgsrechnung, name="bericht_erfolgsrechnung"),
     path("berichte/saldobilanz/", views.bericht_saldobilanz, name="bericht_saldobilanz"),
     path("berichte/kontoblatt/", views.bericht_kontoblatt, name="bericht_kontoblatt"),
+    path("berichte/pdf/<str:report>/", views.bericht_pdf, name="bericht_pdf"),
 ]
