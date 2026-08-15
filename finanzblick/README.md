@@ -7,9 +7,29 @@ nicht.
 
 ## Starten
 
-`finanzblick/index.html` im Browser öffnen – per Doppelklick oder über
-„Datei öffnen". Der ganze Ordner lässt sich auf einen USB-Stick kopieren und auf
-einem Rechner ohne Internetverbindung benutzen.
+Zwei Wege, beide ohne Installation:
+
+**Direkt aus der Datei.** `finanzblick/index.html` im Browser öffnen – per
+Doppelklick oder über „Datei öffnen". Reicht für den Alltag völlig aus.
+
+**Über localhost.** Im Ordner `finanzblick/`:
+
+```sh
+./start.sh          # macOS, Linux
+start.cmd           # Windows (auch per Doppelklick)
+```
+
+Das öffnet <http://localhost:8765/index.html> im Browser. Port 8765 ist bewusst
+gewählt: Port 8000 gehört der Buchhaltungs-App in diesem Repository, 80 und 443
+dem nginx davor. Ein anderer Port geht als Argument: `./start.sh 9000`.
+
+Der Server hört nur auf `127.0.0.1`, ist also ausschliesslich von diesem Rechner
+erreichbar und nicht aus dem übrigen Netzwerk. Beenden mit `Strg+C`. Gebraucht
+wird nur Python, das auf macOS und Linux ohnehin vorhanden ist – ohne Python
+bleibt der Weg über die Datei.
+
+Der ganze Ordner lässt sich auf einen USB-Stick kopieren und auf einem Rechner
+ohne Internetverbindung benutzen.
 
 Zum Ausprobieren ohne eigene Daten: **Beispieldaten laden** erzeugt zwei Jahre
 plausibler Buchungen.
@@ -88,6 +108,7 @@ Regeln und manuelle Zuweisungen werden unabhängig davon immer lokal gespeichert
 | `categories.js` | Kategorien, Regelwerk, Erkennung wiederkehrender Zahlungen |
 | `charts.js` | Diagramme als handgezeichnetes SVG, ohne Bibliothek |
 | `app.js` | Zustand, Filter, Kennzahlen, Tabellen, Import und Export |
+| `start.sh` / `start.cmd` | Startet den lokalen Server auf Port 8765 |
 
 Kein Build-Schritt, keine Abhängigkeiten. Änderungen an den Dateien wirken nach
 einem Neuladen der Seite.
