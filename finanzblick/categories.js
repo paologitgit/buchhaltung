@@ -35,6 +35,7 @@
     { pattern: "rente", category: "Einkommen", sign: "in" },
     { pattern: "ahv", category: "Einkommen", sign: "in" },
     { pattern: "dividende", category: "Einkommen", sign: "in" },
+    { pattern: "zinsgutschrift", category: "Einkommen", sign: "in" },
     { pattern: "zins", category: "Einkommen", sign: "in" },
     { pattern: "rückerstattung", category: "Einkommen", sign: "in" },
 
@@ -55,19 +56,28 @@
     { pattern: "aldi", category: "Lebensmittel" },
     { pattern: "lidl", category: "Lebensmittel" },
     { pattern: "volg", category: "Lebensmittel" },
-    { pattern: "spar ", category: "Lebensmittel" },
+    { pattern: "spar", category: "Lebensmittel" },
     { pattern: "edeka", category: "Lebensmittel" },
     { pattern: "rewe", category: "Lebensmittel" },
     { pattern: "billa", category: "Lebensmittel" },
     { pattern: "bäckerei", category: "Lebensmittel" },
     { pattern: "metzgerei", category: "Lebensmittel" },
     { pattern: "supermarkt", category: "Lebensmittel" },
+    { pattern: "getränke", category: "Lebensmittel" },
+    { pattern: "traiteur", category: "Lebensmittel" },
 
     { pattern: "restaurant", category: "Restaurant & Ausgang" },
     { pattern: "café", category: "Restaurant & Ausgang" },
-    { pattern: "cafe ", category: "Restaurant & Ausgang" },
-    { pattern: "bar ", category: "Restaurant & Ausgang" },
+    { pattern: "cafe", category: "Restaurant & Ausgang" },
+    { pattern: "bar", category: "Restaurant & Ausgang" },
     { pattern: "pizzeria", category: "Restaurant & Ausgang" },
+    { pattern: "ristorante", category: "Restaurant & Ausgang" },
+    { pattern: "trattoria", category: "Restaurant & Ausgang" },
+    { pattern: "osteria", category: "Restaurant & Ausgang" },
+    { pattern: "grotto", category: "Restaurant & Ausgang" },
+    { pattern: "brasserie", category: "Restaurant & Ausgang" },
+    { pattern: "gasthof", category: "Restaurant & Ausgang" },
+    { pattern: "kantine", category: "Restaurant & Ausgang" },
     { pattern: "mcdonald", category: "Restaurant & Ausgang" },
     { pattern: "burger", category: "Restaurant & Ausgang" },
     { pattern: "starbucks", category: "Restaurant & Ausgang" },
@@ -111,14 +121,14 @@
     { pattern: "baloise", category: "Versicherung" },
     { pattern: "suva", category: "Versicherung" },
     { pattern: "krankenkasse", category: "Versicherung" },
-    { pattern: "css ", category: "Versicherung" },
+    { pattern: "css", category: "Versicherung" },
     { pattern: "helsana", category: "Versicherung" },
     { pattern: "swica", category: "Versicherung" },
     { pattern: "sanitas", category: "Versicherung" },
     { pattern: "concordia", category: "Versicherung" },
     { pattern: "visana", category: "Versicherung" },
     { pattern: "kpt", category: "Versicherung" },
-    { pattern: "tk ", category: "Versicherung" },
+    { pattern: "tk", category: "Versicherung" },
     { pattern: "barmer", category: "Versicherung" },
 
     { pattern: "apotheke", category: "Gesundheit" },
@@ -133,6 +143,7 @@
 
     { pattern: "swisscom", category: "Kommunikation & Abos" },
     { pattern: "sunrise", category: "Kommunikation & Abos" },
+    { pattern: "salt mobile", category: "Kommunikation & Abos" },
     { pattern: "salt", category: "Kommunikation & Abos" },
     { pattern: "wingo", category: "Kommunikation & Abos" },
     { pattern: "telekom", category: "Kommunikation & Abos" },
@@ -150,6 +161,7 @@
     { pattern: "microsoft", category: "Kommunikation & Abos" },
     { pattern: "adobe", category: "Kommunikation & Abos" },
     { pattern: "dropbox", category: "Kommunikation & Abos" },
+    { pattern: "abonnement", category: "Kommunikation & Abos" },
     { pattern: "abo", category: "Kommunikation & Abos" },
 
     { pattern: "zalando", category: "Shopping" },
@@ -182,10 +194,15 @@
     { pattern: "ticketcorner", category: "Freizeit & Reisen" },
     { pattern: "eventim", category: "Freizeit & Reisen" },
     { pattern: "museum", category: "Freizeit & Reisen" },
+    { pattern: "lotto", category: "Freizeit & Reisen" },
+    { pattern: "schwimmbad", category: "Freizeit & Reisen" },
+    { pattern: "bergbahn", category: "Freizeit & Reisen" },
+    { pattern: "skipass", category: "Freizeit & Reisen" },
 
     { pattern: "universität", category: "Bildung" },
     { pattern: "hochschule", category: "Bildung" },
     { pattern: "schule", category: "Bildung" },
+    { pattern: "kursgebühr", category: "Bildung" },
     { pattern: "kurs", category: "Bildung" },
     { pattern: "weiterbildung", category: "Bildung" },
     { pattern: "kita", category: "Bildung" },
@@ -198,9 +215,14 @@
     { pattern: "jahresgebühr", category: "Steuern & Gebühren" },
     { pattern: "mahngebühr", category: "Steuern & Gebühren" },
     { pattern: "gemeinde", category: "Steuern & Gebühren" },
+    { pattern: "betreibung", category: "Steuern & Gebühren" },
+    { pattern: "konkursamt", category: "Steuern & Gebühren" },
+    { pattern: "notariat", category: "Steuern & Gebühren" },
 
     { pattern: "bargeldbezug", category: "Bargeld" },
     { pattern: "bancomat", category: "Bargeld" },
+    { pattern: "postomat", category: "Bargeld" },
+    { pattern: "bankomat", category: "Bargeld" },
     { pattern: "geldautomat", category: "Bargeld" },
     { pattern: "atm", category: "Bargeld" },
     { pattern: "auszahlung schalter", category: "Bargeld" },
@@ -218,16 +240,66 @@
   ];
 
   /**
-   * Prüft eine Regel gegen eine Buchung. Das Stichwort wird bewusst nicht
-   * getrimmt: das Leerzeichen in "spar " trennt den Supermarkt vom Sparkonto
-   * und "bar " den Ausgang vom Bargeldbezug.
+   * Vereinheitlicht Buchungstexte und Stichwörter: Kleinschreibung, Umlaute
+   * ausgeschrieben, Satzzeichen zu Leerzeichen. Damit trifft "gebühr" auch
+   * "GEBUEHR" und "Coop-Tankstelle" zerfällt in zwei Wörter.
    */
-  function ruleMatches(rule, text, amount) {
+  function normalizeText(value) {
+    return String(value || "")
+      .toLowerCase()
+      .replace(/ä/g, "ae")
+      .replace(/ö/g, "oe")
+      .replace(/ü/g, "ue")
+      .replace(/ß/g, "ss")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function escapeRegex(value) {
+    return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  }
+
+  /**
+   * Baut den Vergleichsausdruck zu einem Stichwort.
+   *
+   * Ein Stichwort trifft nur am Wortanfang – sonst landet "Risotto" wegen
+   * "otto" beim Versandhaus und "Konkursamt" wegen "kurs" bei der Bildung.
+   * Kurze Stichwörter (bis vier Zeichen) müssen zusätzlich am Wortende
+   * aufhören, damit "spar" den Supermarkt trifft und nicht das Sparkonto,
+   * "bar" die Bar und nicht den Bargeldbezug.
+   *
+   * Ein führender Stern schaltet auf die alte Suche im ganzen Wort um:
+   * "*otto" trifft auch mitten im Wort.
+   */
+  function patternRegex(pattern) {
+    var raw = String(pattern || "");
+    var anywhere = raw.charAt(0) === "*";
+    var normalized = normalizeText(anywhere ? raw.slice(1) : raw);
+    if (!normalized) return null;
+
+    if (anywhere) return new RegExp(escapeRegex(normalized));
+
+    var letters = normalized.replace(/ /g, "");
+    var tail = letters.length <= 4 ? "(?= |$)" : "";
+    return new RegExp("(?:^| )" + escapeRegex(normalized) + tail);
+  }
+
+  function ruleRegex(rule) {
+    if (rule.__source !== rule.pattern) {
+      rule.__source = rule.pattern;
+      rule.__regex = patternRegex(rule.pattern);
+    }
+    return rule.__regex;
+  }
+
+  /** Prüft eine Regel gegen einen bereits normalisierten Buchungstext. */
+  function ruleMatches(rule, normalizedText, amount) {
     if (rule.sign === "in" && amount <= 0) return false;
     if (rule.sign === "out" && amount >= 0) return false;
-    var pattern = String(rule.pattern || "").toLowerCase();
-    if (!pattern.trim()) return false;
-    return text.indexOf(pattern) > -1;
+    var regex = ruleRegex(rule);
+    return !!regex && regex.test(normalizedText);
   }
 
   /**
@@ -236,15 +308,22 @@
    */
   function categorize(tx, rules, overrides) {
     if (overrides && overrides[tx.key]) {
-      return { category: overrides[tx.key], source: "manuell" };
+      return { category: overrides[tx.key], source: "manuell", rule: null };
     }
-    var text = tx.description.toLowerCase();
+    var text = normalizeText(tx.description);
     for (var i = 0; i < rules.length; i++) {
       if (ruleMatches(rules[i], text, tx.amount)) {
-        return { category: rules[i].category, source: "regel" };
+        return { category: rules[i].category, source: "regel", rule: rules[i].pattern };
       }
     }
-    return { category: tx.amount > 0 ? "Einkommen" : "Sonstiges", source: "standard" };
+    // Ohne Treffer bleibt die Buchung offen – sichtbar über den Filter
+    // "Nicht zugeordnet", damit sie nicht unbemerkt in einer Sammelkategorie
+    // verschwindet.
+    return {
+      category: tx.amount > 0 ? "Einkommen" : "Sonstiges",
+      source: "offen",
+      rule: null,
+    };
   }
 
   /* ------------------------------------------------ Wiederkehrende Zahlungen */
@@ -339,6 +418,7 @@
 
   FB.categories = {
     list: CATEGORIES,
+    normalizeText: normalizeText,
     defaultRules: DEFAULT_RULES,
     categorize: categorize,
     normalizeMerchant: normalizeMerchant,

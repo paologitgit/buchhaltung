@@ -458,6 +458,48 @@
     return mapping;
   }
 
+  /* ---------------------------------------------------------- Kontoname -- */
+
+  var IBAN_RE = /\b([A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{3,5}){3,7})\b/;
+
+  /**
+   * Der Kontoname entscheidet, welche Buchungen als Dubletten gelten. Zwei
+   * Exporte desselben Kontos müssen deshalb denselben Namen bekommen, sonst
+   * zählt eine überlappende Buchung doppelt.
+   *
+   * Erste Wahl ist die IBAN aus der Datei – sie bleibt über alle Exporte
+   * gleich. Sonst der Dateiname ohne Zeitraumangaben, damit aus
+   * "Auszug_2024.csv" und "Auszug_2025.csv" ein Konto wird.
+   */
+  function detectAccountName(rows, filename) {
+    var haystack = rows
+      .slice(0, 40)
+      .map(function (row) {
+        return row.join(" ");
+      })
+      .join(" ")
+      .toUpperCase();
+
+    var match = IBAN_RE.exec(haystack);
+    if (match) {
+      var iban = match[1].replace(/\s/g, "");
+      // Nur die letzten vier Stellen anzeigen: identifiziert das Konto
+      // eindeutig, ohne die vollständige IBAN in jeder Tabelle zu wiederholen.
+      return "Konto ••" + iban.slice(-4);
+    }
+
+    var cleaned = filename
+      .replace(/\.[^.]+$/, "")
+      .replace(/\d{1,4}[._\-/]\d{1,2}[._\-/]\d{1,4}/g, " ")
+      .replace(/\b(19|20)\d{2}\b/g, " ")
+      .replace(/\b(kontoauszug|auszug|export|umsaetze|umsatz|umsätze|buchungen|transactions|statement|bis|von|nr|q[1-4]|h[12])\b/gi, " ")
+      .replace(/[_\-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+
+    return cleaned || filename.replace(/\.[^.]+$/, "");
+  }
+
   /* -------------------------------------------------------- Buchungen ---- */
 
   function buildDescription(row, mapping) {
@@ -582,7 +624,7 @@
 
     var mapping = (overrides && overrides.mapping) || mapColumns(header, dataRows);
     var meta = {
-      account: (overrides && overrides.account) || filename.replace(/\.[^.]+$/, ""),
+      account: (overrides && overrides.account) || detectAccountName(allRows, filename),
       currency: overrides && overrides.currency,
       invertSign: !!(overrides && overrides.invertSign),
     };
@@ -613,6 +655,7 @@
     parseAmount: parseAmount,
     makeDateParser: makeDateParser,
     buildTransactions: buildTransactions,
+    detectAccountName: detectAccountName,
     readFile: readFile,
     normalizeKey: normalizeKey,
     toDateKey: toDateKey,

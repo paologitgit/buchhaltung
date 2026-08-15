@@ -26,6 +26,7 @@
       to: null,
       account: "",
       category: "",
+      assignment: "",
       search: "",
       excludeTransfers: false,
     },
@@ -183,6 +184,30 @@
     if (!files.length) return;
 
     var pending = files.length;
+    var added = [];
+
+    function finish() {
+      if (--pending > 0) return;
+      // Erst nach dem Zusammenführen steht fest, wie viele Buchungen einer
+      // Datei schon aus einem früheren Export bekannt waren.
+      rebuild();
+      added.forEach(function (parsed) {
+        if (!parsed.transactions.length) {
+          message(
+            '"' + parsed.filename + '": keine Buchungen erkannt. Bitte die Spaltenzuordnung unten prüfen.',
+            true
+          );
+          return;
+        }
+        var parts = [parsed.transactions.length + " Buchungen gelesen"];
+        if (parsed.duplicateCount) {
+          parts.push(parsed.duplicateCount + " davon schon vorhanden und nicht doppelt gezählt");
+        }
+        if (parsed.skipped) parts.push(parsed.skipped + " Zeilen übersprungen");
+        message('"' + parsed.filename + '": ' + parts.join(", ") + ". Konto: " + parsed.account);
+      });
+    }
+
     files.forEach(function (file) {
       var reader = new FileReader();
       reader.onload = function () {
@@ -190,25 +215,15 @@
           var parsed = FB.parse.readFile(reader.result, file.name, null);
           parsed.id = state.nextFileId++;
           state.files.push(parsed);
-
-          if (!parsed.transactions.length) {
-            message(
-              '"' + file.name + '": keine Buchungen erkannt. Bitte die Spaltenzuordnung unten prüfen.',
-              true
-            );
-          } else {
-            var note = '"' + file.name + '": ' + parsed.transactions.length + " Buchungen gelesen";
-            if (parsed.skipped) note += ", " + parsed.skipped + " Zeilen übersprungen";
-            message(note + ".");
-          }
+          added.push(parsed);
         } catch (error) {
           message('"' + file.name + '" konnte nicht gelesen werden: ' + error.message, true);
         }
-        if (--pending === 0) rebuild();
+        finish();
       };
       reader.onerror = function () {
         message('"' + file.name + '" konnte nicht gelesen werden.', true);
-        if (--pending === 0) rebuild();
+        finish();
       };
       reader.readAsArrayBuffer(file);
     });
@@ -245,10 +260,12 @@
     var duplicates = 0;
 
     state.files.forEach(function (file) {
+      file.duplicateCount = 0;
       file.transactions.forEach(function (tx) {
         var key = file.account + "|" + tx.key;
         if (seen[key]) {
           duplicates++;
+          file.duplicateCount++;
           return;
         }
         seen[key] = true;
@@ -260,11 +277,15 @@
       return a.date - b.date || a.description.localeCompare(b.description);
     });
 
+    var hits = {};
     all.forEach(function (tx) {
       var result = FB.categories.categorize(tx, state.rules, state.overrides);
       tx.category = result.category;
       tx.categorySource = result.source;
+      tx.categoryRule = result.rule;
+      if (result.rule) hits[result.rule] = (hits[result.rule] || 0) + 1;
     });
+    state.ruleHits = hits;
 
     state.transactions = all;
     state.currency = mostCommonCurrency(all);
@@ -327,6 +348,7 @@
       if (bounds.to && tx.date > bounds.to) return false;
       if (filters.account && tx.account !== filters.account) return false;
       if (filters.category && tx.category !== filters.category) return false;
+      if (filters.assignment && tx.categorySource !== filters.assignment) return false;
       if (filters.excludeTransfers && tx.category === "Umbuchung & Sparen") return false;
       if (needle && tx.description.toLowerCase().indexOf(needle) === -1) return false;
       return true;
@@ -492,6 +514,12 @@
       );
     }
     if (state.duplicates) parts.push(state.duplicates + " Dubletten übersprungen");
+
+    var open = transactions.filter(function (tx) {
+      return tx.categorySource === "offen";
+    }).length;
+    if (open) parts.push(open + " ohne passende Regel");
+
     $("filter-summary").textContent = parts.join(" · ");
   }
 
@@ -775,14 +803,34 @@
         saveStorage(STORAGE.overrides, state.overrides);
         rebuild();
       });
+      // Woher die Kategorie stammt, gehört sichtbar gemacht – sonst lässt sich
+      // eine falsche Zuordnung nicht gezielt korrigieren.
+      select.title =
+        tx.categorySource === "manuell"
+          ? "Von Hand gesetzt"
+          : tx.categorySource === "regel"
+          ? 'Regel "' + tx.categoryRule + '"'
+          : "Keine Regel passt – Vorgabe nach Vorzeichen";
       categoryCell.appendChild(select);
-      if (tx.categorySource === "manuell") {
+
+      if (tx.categorySource !== "regel") {
         var tag = document.createElement("span");
-        tag.className = "tag";
-        tag.textContent = "manuell";
+        tag.className = "tag" + (tx.categorySource === "offen" ? " tag--open" : "");
+        tag.textContent = tx.categorySource === "manuell" ? "manuell" : "offen";
         categoryCell.appendChild(document.createTextNode(" "));
         categoryCell.appendChild(tag);
       }
+
+      var ruleButton = document.createElement("button");
+      ruleButton.type = "button";
+      ruleButton.className = "button button--ghost button--small";
+      ruleButton.textContent = "Regel";
+      ruleButton.title = "Aus diesem Buchungstext eine Regel bauen";
+      ruleButton.addEventListener("click", function () {
+        prefillRule(tx);
+      });
+      categoryCell.appendChild(document.createTextNode(" "));
+      categoryCell.appendChild(ruleButton);
       tr.appendChild(categoryCell);
 
       var accountCell = document.createElement("td");
@@ -802,6 +850,24 @@
     var more = $("more-button");
     more.hidden = rows.length <= state.limit;
     more.textContent = "Weitere " + Math.min(200, rows.length - state.limit) + " Buchungen anzeigen";
+  }
+
+  /**
+   * Übernimmt den stabilen Kern eines Buchungstextes ins Regelformular. Der
+   * Weg von "diese Buchung ist falsch einsortiert" zu "alle Buchungen dieses
+   * Händlers sind richtig einsortiert" soll ein Klick sein.
+   */
+  function prefillRule(tx) {
+    var suggestion = FB.categories.normalizeMerchant(tx.description);
+    if (!suggestion) suggestion = FB.categories.normalizeText(tx.description).split(" ").slice(0, 2).join(" ");
+
+    $("rule-pattern").value = suggestion;
+    $("rule-category").value = tx.category;
+    $("rule-sign").value = tx.amount > 0 ? "in" : "out";
+
+    $("rules-card").scrollIntoView({ behavior: "smooth", block: "center" });
+    $("rule-pattern").focus();
+    $("rule-pattern").select();
   }
 
   /* ------------------------------------------------------------ Dateien -- */
@@ -945,12 +1011,6 @@
   /* ------------------------------------------------------------- Regeln -- */
 
   function renderRules() {
-    var counts = {};
-    state.transactions.forEach(function (tx) {
-      if (tx.categorySource !== "regel") return;
-      counts[tx.category] = (counts[tx.category] || 0) + 1;
-    });
-
     var container = $("table-rules");
     container.textContent = "";
 
@@ -959,9 +1019,10 @@
 
     var thead = document.createElement("thead");
     var headRow = document.createElement("tr");
-    ["Stichwort", "Kategorie", "Gilt für", ""].forEach(function (label) {
+    ["Stichwort", "Kategorie", "Gilt für", "Treffer", ""].forEach(function (label) {
       var th = document.createElement("th");
       th.textContent = label;
+      if (label === "Treffer") th.className = "is-numeric";
       headRow.appendChild(th);
     });
     thead.appendChild(headRow);
@@ -983,6 +1044,11 @@
       signCell.textContent =
         rule.sign === "in" ? "Einnahmen" : rule.sign === "out" ? "Ausgaben" : "alle";
       tr.appendChild(signCell);
+
+      var hitCell = document.createElement("td");
+      hitCell.className = "is-numeric";
+      hitCell.textContent = String((state.ruleHits && state.ruleHits[rule.pattern]) || 0);
+      tr.appendChild(hitCell);
 
       var actionCell = document.createElement("td");
       var up = document.createElement("button");
@@ -1296,6 +1362,11 @@
       state.filters.category = event.target.value;
       render();
     });
+    $("filter-assignment").addEventListener("change", function (event) {
+      state.filters.assignment = event.target.value;
+      state.limit = 200;
+      render();
+    });
     $("filter-exclude-transfers").addEventListener("change", function (event) {
       state.filters.excludeTransfers = event.target.checked;
       render();
@@ -1314,13 +1385,15 @@
 
     $("filter-reset").addEventListener("click", function () {
       state.filters = {
-        range: "all", from: null, to: null, account: "", category: "", search: "", excludeTransfers: false,
+        range: "all", from: null, to: null, account: "", category: "",
+        assignment: "", search: "", excludeTransfers: false,
       };
       $("filter-range").value = "all";
       $("filter-from").value = "";
       $("filter-to").value = "";
       $("filter-account").value = "";
       $("filter-category").value = "";
+      $("filter-assignment").value = "";
       $("filter-search").value = "";
       $("filter-exclude-transfers").checked = false;
       $("field-from").hidden = true;

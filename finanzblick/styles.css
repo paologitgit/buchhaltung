@@ -381,6 +381,8 @@ input:focus-visible, select:focus-visible {
   margin-bottom: 14px;
 }
 
+.tag--open { border-color: var(--neg); color: var(--text-primary); }
+
 .tag {
   display: inline-block;
   font-size: 11px;
