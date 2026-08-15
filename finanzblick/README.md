@@ -1,0 +1,101 @@
+# Finanzblick
+
+Ein Offline-Werkzeug, das CSV-Auszüge der Bank auswertet und die eigene
+Finanzentwicklung sichtbar macht. Es läuft vollständig im Browser: kein Server,
+keine Installation, keine Netzwerkaufrufe. Die Kontodaten verlassen den Rechner
+nicht.
+
+## Starten
+
+`finanzblick/index.html` im Browser öffnen – per Doppelklick oder über
+„Datei öffnen". Der ganze Ordner lässt sich auf einen USB-Stick kopieren und auf
+einem Rechner ohne Internetverbindung benutzen.
+
+Zum Ausprobieren ohne eigene Daten: **Beispieldaten laden** erzeugt zwei Jahre
+plausibler Buchungen.
+
+## Was es zeigt
+
+| Ansicht | Frage, die sie beantwortet |
+| --- | --- |
+| Kennzahlen | Wie viel bleibt übrig? Wie hoch sind Einnahmen, Ausgaben, Sparquote? |
+| Saldoverlauf | Wächst oder schrumpft das Vermögen über die Zeit? |
+| Einnahmen und Ausgaben pro Monat | In welchen Monaten lief es aus dem Ruder? |
+| Monatssaldo | Welche Monate waren im Plus, welche im Minus? |
+| Ausgaben nach Kategorie | Wohin fliesst das Geld? |
+| Wiederkehrende Zahlungen | Welche Fixkosten laufen jeden Monat weiter? |
+| Grösste Empfänger | Wer bekommt am meisten? |
+| Buchungen | Die Einzelbelege, durchsuchbar und filterbar |
+
+Jedes Diagramm hat eine Schaltfläche **Tabelle** – dieselben Werte als Text,
+ohne Mauszeiger erreichbar.
+
+## CSV-Formate
+
+Das Tool rät Kodierung, Trennzeichen, Kopfzeile, Spalten sowie Datums- und
+Zahlenformat selbst. Getestet mit:
+
+- Schweizer Auszügen mit Vorspann, Semikolon, `Belastung`/`Gutschrift` und
+  Apostroph-Zahlen (`1'650.00`)
+- deutschen Exporten mit `1.234,56` und einer einzelnen `Betrag`-Spalte
+- englischen Exporten (`2025-01-05`, Komma-Trennzeichen, `-12.99`)
+- Tabulator-Dateien, nachgestelltem Minus (`85.40-`) und Dateien ganz ohne
+  Kopfzeile
+
+Windows-1252 wird automatisch erkannt, wenn die Datei kein gültiges UTF-8 ist.
+
+Wenn die Erkennung danebenliegt, lässt sich unter jeder geladenen Datei jede
+Spalte von Hand zuordnen, der Kontoname setzen und das Vorzeichen umkehren
+(für Banken, die Ausgaben positiv ausweisen).
+
+Mehrere Dateien und mehrere Konten sind möglich. Buchungen mit gleichem Datum,
+Betrag und Text im selben Konto gelten als Dublette und werden nur einmal
+gezählt – überlappende Exporte sind also unproblematisch.
+
+## Kategorien
+
+Die Zuordnung erfolgt über Stichwortregeln, erste passende Regel gewinnt. Rund
+170 Regeln für den DACH-Raum sind vorbereitet (Migros, Coop, SBB, Krankenkassen,
+Abos, Steuern …).
+
+- Einzelne Buchung ändern: Kategorie direkt in der Buchungstabelle wählen. Die
+  Zuweisung überschreibt alle Regeln und bleibt erhalten.
+- Regel ergänzen: Stichwort und Kategorie im Abschnitt **Kategorie-Regeln**
+  eintragen. Neue Regeln stehen zuoberst und gewinnen damit gegen die
+  Standardregeln.
+- Reihenfolge zählt: mit ▲ rutscht eine Regel nach oben.
+- Regeln und manuelle Zuweisungen lassen sich als JSON sichern und wieder laden.
+
+Ein Stichwort mit Leerzeichen am Ende (`"spar "`) trifft nur ganze Wörter – so
+landet der Supermarkt SPAR nicht beim Sparkonto.
+
+## Daten im Browser behalten
+
+Standardmässig liegen die Buchungen nur im Arbeitsspeicher und sind nach dem
+Schliessen weg. Wer sie behalten will, aktiviert **Buchungen im Browser
+speichern**; sie landen dann im lokalen Speicher des Browsers (localStorage) –
+weiterhin nur auf diesem Rechner. Das Häkchen wieder zu entfernen löscht sie.
+
+Regeln und manuelle Zuweisungen werden unabhängig davon immer lokal gespeichert.
+
+## Aufbau
+
+| Datei | Inhalt |
+| --- | --- |
+| `index.html` | Seitengerüst |
+| `styles.css` | Gestaltung, Hell- und Dunkelmodus |
+| `parser.js` | CSV-Erkennung: Kodierung, Trennzeichen, Kopfzeile, Spalten, Datums- und Betragsformate |
+| `categories.js` | Kategorien, Regelwerk, Erkennung wiederkehrender Zahlungen |
+| `charts.js` | Diagramme als handgezeichnetes SVG, ohne Bibliothek |
+| `app.js` | Zustand, Filter, Kennzahlen, Tabellen, Import und Export |
+
+Kein Build-Schritt, keine Abhängigkeiten. Änderungen an den Dateien wirken nach
+einem Neuladen der Seite.
+
+## Verhältnis zur Buchhaltungs-App
+
+Finanzblick ist bewusst eigenständig und unabhängig von der Django-Anwendung in
+diesem Repository: keine Datenbank, keine Anmeldung, kein Docker. Es dient dem
+Verstehen der eigenen Zahlen, nicht der Buchführung. Die Spaltenerkennung greift
+dieselben Formate auf, die auch der CSV-Import unter `bank/services.py`
+verarbeitet.
