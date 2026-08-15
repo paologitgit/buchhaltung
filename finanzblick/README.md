@@ -45,10 +45,25 @@ plausibler Buchungen.
 | Ausgaben nach Kategorie | Wohin fliesst das Geld? |
 | Wiederkehrende Zahlungen | Welche Fixkosten laufen jeden Monat weiter? |
 | Grösste Empfänger | Wer bekommt am meisten? |
-| Buchungen | Die Einzelbelege, durchsuchbar und filterbar |
+| Buchungen | Die Einzelbelege mit Kontostand, durchsuchbar und filterbar |
 
 Jedes Diagramm hat eine Schaltfläche **Tabelle** – dieselben Werte als Text,
 ohne Mauszeiger erreichbar.
+
+## Kontostand
+
+Die Buchungstabelle und der CSV-Export führen zu jeder Buchung den Kontostand
+**nach** ihrer Verbuchung. Enthält die CSV eine Saldospalte, wird diese
+unverändert übernommen; fehlt sie, wird ab Beginn der Daten aufsummiert – dann
+stimmt der Verlauf, nicht aber die absolute Höhe. Was gerade gilt, steht über
+der Tabelle und in der Spaltenüberschrift.
+
+Gerechnet wird immer über alle Buchungen eines Kontos, nie über die gefilterte
+Auswahl: der Kontostand hängt an allen Buchungen davor, nicht daran, was gerade
+angezeigt wird. Aus demselben Grund reagiert der **Saldoverlauf** nur auf
+Zeitraum und Konto, nicht auf Kategorie, Suche oder Zuordnung – sonst wäre er
+die Summe einer Teilmenge und nicht mehr der Kontostand. Bei mehreren Konten
+zeigt er deren Summe.
 
 ## CSV-Formate
 

@@ -287,6 +287,7 @@
     });
     state.ruleHits = hits;
 
+    state.balanceInfo = computeBalances(all);
     state.transactions = all;
     state.currency = mostCommonCurrency(all);
     state.duplicates = duplicates;
@@ -296,6 +297,56 @@
     renderFileList();
     renderFilterOptions();
     render();
+  }
+
+  /**
+   * Schreibt jeder Buchung den Kontostand nach ihrer Verbuchung zu.
+   *
+   * Liefert die Bank eine Saldospalte, wird sie unverändert übernommen. Sonst
+   * wird ab dem Beginn der Daten aufsummiert – dann stimmt der Verlauf, nicht
+   * aber die absolute Höhe.
+   *
+   * Gerechnet wird immer über alle Buchungen eines Kontos, nie über die
+   * gefilterte Auswahl: der Kontostand einer Buchung hängt an allen Buchungen
+   * davor, nicht daran, was gerade angezeigt wird.
+   */
+  function computeBalances(transactions) {
+    var byAccount = {};
+    transactions.forEach(function (tx) {
+      if (!byAccount[tx.account]) byAccount[tx.account] = [];
+      byAccount[tx.account].push(tx);
+    });
+
+    var info = {};
+    Object.keys(byAccount).forEach(function (account) {
+      var list = byAccount[account];
+      var fromBank = list.every(function (tx) {
+        return typeof tx.balance === "number" && isFinite(tx.balance);
+      });
+      var running = 0;
+      list.forEach(function (tx) {
+        running += tx.amount;
+        tx.balanceRunning = fromBank ? tx.balance : running;
+      });
+      info[account] = {
+        fromBank: fromBank,
+        last: list.length ? list[list.length - 1].balanceRunning : 0,
+      };
+    });
+    return info;
+  }
+
+  /** Stammen alle Konten der Auswahl aus einer Saldospalte der Bank? */
+  function balancesAreAbsolute(transactions) {
+    var info = state.balanceInfo || {};
+    var accounts = {};
+    transactions.forEach(function (tx) {
+      accounts[tx.account] = true;
+    });
+    var names = Object.keys(accounts);
+    return names.length > 0 && names.every(function (account) {
+      return info[account] && info[account].fromBank;
+    });
   }
 
   function mostCommonCurrency(transactions) {
@@ -338,15 +389,19 @@
     return { from: from, to: to };
   }
 
-  function filteredTransactions() {
+  function filteredTransactions(options) {
     var filters = state.filters;
     var bounds = rangeBounds();
     var needle = filters.search.trim().toLowerCase();
+    // Für den Kontostand zählen nur Zeitraum und Konto: eine Buchung fällt
+    // nicht aus dem Saldo, weil gerade nach einer Kategorie gefiltert wird.
+    var balanceScope = !!(options && options.balanceScope);
 
     return state.transactions.filter(function (tx) {
       if (bounds.from && tx.date < bounds.from) return false;
       if (bounds.to && tx.date > bounds.to) return false;
       if (filters.account && tx.account !== filters.account) return false;
+      if (balanceScope) return true;
       if (filters.category && tx.category !== filters.category) return false;
       if (filters.assignment && tx.categorySource !== filters.assignment) return false;
       if (filters.excludeTransfers && tx.category === "Umbuchung & Sparen") return false;
@@ -408,28 +463,27 @@
   function balanceSeries(transactions) {
     if (!transactions.length) return { points: [], absolute: false };
 
-    var accounts = {};
-    transactions.forEach(function (tx) {
-      accounts[tx.account] = true;
-    });
-    var singleAccount = Object.keys(accounts).length === 1;
-    var hasBalance = singleAccount && transactions.every(function (tx) {
-      return typeof tx.balance === "number" && isFinite(tx.balance);
-    });
-
+    var hasBalance = balancesAreAbsolute(transactions);
+    var levels = {}; // letzter bekannter Stand je Konto
     var byDay = {};
     var order = [];
-    var running = 0;
 
     transactions.forEach(function (tx) {
       if (!byDay[tx.dateKey]) {
         byDay[tx.dateKey] = { date: tx.date, value: 0, change: 0, count: 0 };
         order.push(tx.dateKey);
       }
-      running += tx.amount;
       byDay[tx.dateKey].change += tx.amount;
       byDay[tx.dateKey].count++;
-      byDay[tx.dateKey].value = hasBalance ? tx.balance : running;
+
+      // Bei mehreren Konten ist der Gesamtstand die Summe der zuletzt
+      // bekannten Stände – ein Konto ohne Buchung an diesem Tag behält seinen.
+      levels[tx.account] = tx.balanceRunning;
+      var total = 0;
+      Object.keys(levels).forEach(function (account) {
+        total += levels[account];
+      });
+      byDay[tx.dateKey].value = total;
     });
 
     var points = order.map(function (key) {
@@ -499,7 +553,10 @@
     var transactions = filteredTransactions();
     renderSummary(transactions);
     renderKpis(transactions);
-    renderCharts(transactions);
+    // Der Saldoverlauf zeigt den echten Kontostand und darf deshalb nicht auf
+    // Kategorie, Suche oder Zuordnung reagieren – sonst wäre er die Summe
+    // einer Teilmenge und nicht mehr der Kontostand.
+    renderCharts(transactions, filteredTransactions({ balanceScope: true }));
     renderRecurring(transactions);
     renderTopPayees(transactions);
     renderTransactions(transactions);
@@ -568,14 +625,16 @@
     $("kpi-rate-meta").textContent = income > 0 ? "Anteil der Einnahmen, der übrig bleibt" : "Keine Einnahmen im Zeitraum";
   }
 
-  function renderCharts(transactions) {
+  function renderCharts(transactions, balanceTransactions) {
     var t = FB.charts.theme();
 
     /* Saldoverlauf */
-    var balance = balanceSeries(transactions);
-    $("chart-balance-subtitle").textContent = balance.absolute
-      ? "Kontostand laut Saldospalte der Bank"
-      : "Aufsummierte Veränderung ab Beginn des gewählten Zeitraums";
+    var balance = balanceSeries(balanceTransactions || transactions);
+    $("chart-balance-subtitle").textContent =
+      (balance.absolute
+        ? "Kontostand laut Saldospalte der Bank"
+        : "Aufsummiert ab Beginn der Daten – der Verlauf stimmt, die absolute Höhe nicht") +
+      " · nur Zeitraum und Konto wirken hier";
 
     FB.charts.line($("chart-balance"), {
       points: balance.points,
@@ -756,21 +815,31 @@
 
     var rows = transactions.slice().reverse();
     var visible = rows.slice(0, state.limit);
+    var absolute = balancesAreAbsolute(transactions);
 
     $("transactions-count").textContent =
-      transactions.length + " Buchungen im Filter · Kategorie in der Tabelle änderbar";
+      transactions.length +
+      " Buchungen im Filter · Kategorie in der Tabelle änderbar · Kontostand " +
+      (absolute ? "laut Saldospalte der Bank" : "aufsummiert ab Beginn der Daten");
 
     var table = document.createElement("table");
     table.className = "data-table";
 
     var thead = document.createElement("thead");
     var headRow = document.createElement("tr");
-    ["Datum", "Buchungstext", "Kategorie", "Konto", "Betrag"].forEach(function (label, i) {
-      var th = document.createElement("th");
-      th.textContent = label;
-      if (i === 4) th.className = "is-numeric";
-      headRow.appendChild(th);
-    });
+    ["Datum", "Buchungstext", "Kategorie", "Konto", "Betrag", "Kontostand"].forEach(
+      function (label, i) {
+        var th = document.createElement("th");
+        th.textContent = label;
+        if (i >= 4) th.className = "is-numeric";
+        if (label === "Kontostand") {
+          th.title = absolute
+            ? "Kontostand nach dieser Buchung, laut Saldospalte der Bank"
+            : "Aufsummiert ab Beginn der Daten – die CSV enthält keine Saldospalte";
+        }
+        headRow.appendChild(th);
+      }
+    );
     thead.appendChild(headRow);
     table.appendChild(thead);
 
@@ -841,6 +910,12 @@
       amountCell.className = "is-numeric " + (tx.amount >= 0 ? "is-positive" : "is-negative");
       amountCell.textContent = signedMoney(tx.amount);
       tr.appendChild(amountCell);
+
+      var balanceCell = document.createElement("td");
+      balanceCell.className = "is-numeric";
+      balanceCell.textContent =
+        typeof tx.balanceRunning === "number" ? money(tx.balanceRunning) : "–";
+      tr.appendChild(balanceCell);
 
       tbody.appendChild(tr);
     });
@@ -1117,7 +1192,7 @@
   /* ------------------------------------------------------------- Export -- */
 
   function exportCsv() {
-    var rows = [["Datum", "Buchungstext", "Kategorie", "Konto", "Betrag", "Währung"]];
+    var rows = [["Datum", "Buchungstext", "Kategorie", "Konto", "Betrag", "Kontostand", "Währung"]];
     filteredTransactions().forEach(function (tx) {
       rows.push([
         tx.dateKey,
@@ -1125,6 +1200,7 @@
         tx.category,
         tx.account,
         tx.amount.toFixed(2),
+        typeof tx.balanceRunning === "number" ? tx.balanceRunning.toFixed(2) : "",
         tx.currency,
       ]);
     });
