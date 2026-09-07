@@ -1,0 +1,1009 @@
+<title>Wochenplaner Unterricht</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+:root {
+  --grund:        #F4F6F5;
+  --flaeche:      #FFFFFF;
+  --flaeche-still:#EDF1EF;
+  --tinte:        #17201E;
+  --gedaempft:    #5C6B66;
+  --leise:        #8A9994;
+  --akzent:       #0E5A54;
+  --akzent-hell:  #E2EFEC;
+  --linie:        #DCE3E0;
+  --linie-stark:  #C3CFCB;
+  --dringend:     #9E3A22;
+  --dringend-feld:#F7E7E1;
+  --erledigt:     #7B8A85;
+
+  --schrift-titel: "Newsreader", Georgia, "Times New Roman", serif;
+  --schrift-text:  "Public Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  --schrift-daten: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  --rand: 1px solid var(--linie);
+  --radius: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --grund:        #101615;
+    --flaeche:      #18201F;
+    --flaeche-still:#1F2927;
+    --tinte:        #E4EBE8;
+    --gedaempft:    #9BAAA5;
+    --leise:        #6F7D79;
+    --akzent:       #59B7AB;
+    --akzent-hell:  #1B3230;
+    --linie:        #2A3634;
+    --linie-stark:  #3B4A47;
+    --dringend:     #E28E72;
+    --dringend-feld:#33211B;
+    --erledigt:     #6B7975;
+  }
+}
+
+:root[data-theme="dark"] {
+  --grund:        #101615;
+  --flaeche:      #18201F;
+  --flaeche-still:#1F2927;
+  --tinte:        #E4EBE8;
+  --gedaempft:    #9BAAA5;
+  --leise:        #6F7D79;
+  --akzent:       #59B7AB;
+  --akzent-hell:  #1B3230;
+  --linie:        #2A3634;
+  --linie-stark:  #3B4A47;
+  --dringend:     #E28E72;
+  --dringend-feld:#33211B;
+  --erledigt:     #6B7975;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--grund);
+  color: var(--tinte);
+  font-family: var(--schrift-text);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+.huelle {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 28px 24px 72px;
+}
+
+/* ---------- Kopf ---------- */
+
+.kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 32px;
+  padding-bottom: 18px;
+  border-bottom: 2px solid var(--linie-stark);
+}
+
+.kopf-links { display: flex; flex-direction: column; gap: 4px; }
+
+.marke {
+  font-family: var(--schrift-daten);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--leise);
+}
+
+.kw-zeile { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+
+h1 {
+  font-family: var(--schrift-titel);
+  font-size: 34px;
+  font-weight: 500;
+  line-height: 1.1;
+  margin: 0;
+  text-wrap: balance;
+}
+
+.spanne {
+  font-family: var(--schrift-daten);
+  font-size: 13px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+}
+
+.kopf-rechts { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+
+.steuerung { display: flex; align-items: center; gap: 6px; }
+
+button {
+  font-family: var(--schrift-text);
+  font-size: 13px;
+  color: var(--tinte);
+  background: var(--flaeche);
+  border: var(--rand);
+  border-radius: var(--radius);
+  padding: 6px 11px;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+button:hover { background: var(--flaeche-still); border-color: var(--linie-stark); }
+button:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+
+.knopf-pfeil {
+  font-family: var(--schrift-daten);
+  min-width: 32px;
+  padding: 6px 8px;
+}
+.knopf-heute { font-weight: 500; }
+
+/* Fortschritt */
+
+.fortschritt { display: flex; align-items: center; gap: 10px; }
+
+.fortschritt-zahl {
+  font-family: var(--schrift-daten);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gedaempft);
+  white-space: nowrap;
+}
+
+.messer {
+  width: 168px;
+  height: 5px;
+  background: var(--linie);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.messer span {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--akzent);
+  transition: width 0.25s ease;
+}
+
+.zustand {
+  font-family: var(--schrift-daten);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--leise);
+}
+
+/* ---------- Wochenraster ---------- */
+
+.woche {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--linie);
+  border-bottom: var(--rand);
+  margin-top: 0;
+}
+
+.tag {
+  background: var(--flaeche);
+  padding: 18px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  justify-content: flex-start;
+  border-left: 3px solid transparent;
+}
+
+.tag.heute {
+  background: var(--flaeche);
+  border-left-color: var(--akzent);
+}
+
+.tag-kopf { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
+.tag-name {
+  font-family: var(--schrift-titel);
+  font-size: 20px;
+  font-weight: 500;
+  margin: 0;
+  line-height: 1.15;
+}
+.tag.heute .tag-name { color: var(--akzent); }
+
+.tag-datum {
+  font-family: var(--schrift-daten);
+  font-size: 11.5px;
+  color: var(--leise);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tag-zaehler {
+  font-family: var(--schrift-daten);
+  font-size: 11px;
+  color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aufgaben */
+
+.liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+
+.liste li {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  padding: 7px 0;
+  border-top: 1px solid var(--linie);
+}
+.liste li:first-child { border-top: none; padding-top: 0; }
+
+.haken {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  border: 1.5px solid var(--linie-stark);
+  border-radius: var(--radius);
+  background: transparent;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+.haken:hover { border-color: var(--akzent); }
+.haken:checked { background: var(--akzent); border-color: var(--akzent); }
+.haken:checked::after {
+  content: "";
+  position: absolute;
+  left: 4.5px; top: 1px;
+  width: 4px; height: 8.5px;
+  border: solid var(--flaeche);
+  border-width: 0 2px 2px 0;
+  transform: rotate(43deg);
+}
+.haken:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+
+.aufgabe-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+
+.aufgabe-titel { font-size: 14px; line-height: 1.4; overflow-wrap: anywhere; }
+li.ab .aufgabe-titel { color: var(--erledigt); text-decoration: line-through; text-decoration-thickness: 1px; }
+
+.aufgabe-zusatz {
+  font-family: var(--schrift-daten);
+  font-size: 10.5px;
+  color: var(--leise);
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+li.ab .aufgabe-zusatz { opacity: 0.6; }
+
+.fix-mal {
+  flex: none;
+  width: 5px; height: 5px;
+  margin-top: 9px;
+  border-radius: 50%;
+  background: var(--linie-stark);
+}
+li.ab .fix-mal { opacity: 0.4; }
+
+.weg {
+  flex: none;
+  border: none;
+  background: none;
+  color: var(--leise);
+  font-family: var(--schrift-daten);
+  font-size: 15px;
+  line-height: 1;
+  padding: 2px 4px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.12s ease, color 0.12s ease;
+}
+.liste li:hover .weg, .weg:focus-visible { opacity: 1; }
+.weg:hover { color: var(--dringend); background: none; }
+
+/* Eingaben */
+
+.zufuegen {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  margin-top: 2px;
+}
+
+input[type="text"], textarea {
+  font-family: var(--schrift-text);
+  font-size: 13.5px;
+  color: var(--tinte);
+  background: var(--flaeche-still);
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  padding: 6px 8px;
+  width: 100%;
+  transition: border-color 0.12s ease, background 0.12s ease;
+}
+input[type="text"]::placeholder, textarea::placeholder { color: var(--leise); }
+input[type="text"]:focus, textarea:focus {
+  outline: none;
+  background: var(--flaeche);
+  border-color: var(--akzent);
+}
+
+textarea {
+  resize: vertical;
+  min-height: 46px;
+  line-height: 1.45;
+  font-size: 13px;
+}
+
+.notiz-feld { display: flex; flex-direction: column; gap: 5px; padding-top: 2px; }
+
+.feld-marke {
+  font-family: var(--schrift-daten);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--leise);
+}
+
+/* ---------- Untere Bereiche ---------- */
+
+.unten {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  gap: 44px;
+  margin-top: 40px;
+}
+
+section h2 {
+  font-family: var(--schrift-titel);
+  font-size: 21px;
+  font-weight: 500;
+  margin: 0 0 3px;
+  line-height: 1.2;
+}
+
+.bereich-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 9px;
+  border-bottom: 1px solid var(--linie-stark);
+  margin-bottom: 4px;
+}
+
+.bereich-hinweis { font-size: 12.5px; color: var(--gedaempft); }
+
+.eintraege { list-style: none; margin: 0; padding: 0; }
+
+.eintraege li {
+  display: grid;
+  grid-template-columns: 78px 1fr auto;
+  gap: 14px;
+  align-items: baseline;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--linie);
+}
+
+.e-datum {
+  font-family: var(--schrift-daten);
+  font-size: 12px;
+  color: var(--gedaempft);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.e-inhalt { min-width: 0; }
+.e-titel { font-size: 14.5px; line-height: 1.35; overflow-wrap: anywhere; }
+.e-hinweis { font-size: 12.5px; color: var(--gedaempft); margin-top: 2px; line-height: 1.4; }
+
+.chip {
+  font-family: var(--schrift-daten);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--gedaempft);
+  background: var(--flaeche-still);
+  border-radius: 2px;
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+.chip.bald { color: var(--dringend); background: var(--dringend-feld); font-weight: 500; }
+
+.lese { list-style: none; margin: 0; padding: 0; }
+
+.lese li {
+  padding: 13px 0;
+  border-bottom: 1px solid var(--linie);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.l-kopf { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+
+.l-titel { font-size: 14.5px; line-height: 1.35; font-weight: 500; }
+.l-titel a { color: inherit; text-decoration: none; border-bottom: 1px solid var(--linie-stark); }
+.l-titel a:hover { color: var(--akzent); border-bottom-color: var(--akzent); }
+.l-titel a:focus-visible { outline: 2px solid var(--akzent); outline-offset: 2px; }
+
+.l-quelle {
+  font-family: var(--schrift-daten);
+  font-size: 10.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--leise);
+  white-space: nowrap;
+}
+
+.l-text { font-size: 13.5px; color: var(--gedaempft); line-height: 1.5; max-width: 62ch; }
+
+.l-einsatz {
+  font-size: 12.5px;
+  color: var(--tinte);
+  padding-left: 10px;
+  border-left: 2px solid var(--akzent);
+  line-height: 1.45;
+  max-width: 62ch;
+}
+
+.leer {
+  font-size: 13.5px;
+  color: var(--gedaempft);
+  padding: 16px 0 4px;
+  line-height: 1.55;
+  max-width: 56ch;
+}
+.leer code {
+  font-family: var(--schrift-daten);
+  font-size: 12.5px;
+  background: var(--flaeche-still);
+  padding: 1px 5px;
+  border-radius: 2px;
+  color: var(--akzent);
+}
+
+.fuss {
+  margin-top: 44px;
+  padding-top: 14px;
+  border-top: 1px solid var(--linie);
+  font-size: 12px;
+  color: var(--leise);
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+/* ---------- Schmale Fenster ---------- */
+
+@media (max-width: 1080px) {
+  .woche { grid-template-columns: repeat(2, 1fr); }
+  .unten { grid-template-columns: 1fr; gap: 34px; }
+}
+
+@media (max-width: 620px) {
+  .huelle { padding: 20px 15px 56px; }
+  .woche { grid-template-columns: 1fr; }
+  h1 { font-size: 27px; }
+  .kopf { align-items: flex-start; }
+  .kopf-rechts { align-items: flex-start; width: 100%; }
+  .messer { width: 130px; }
+  .eintraege li { grid-template-columns: 68px 1fr; }
+  .eintraege li .chip { grid-column: 2; justify-self: start; }
+  .weg { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+
+<div class="huelle">
+  <header class="kopf">
+    <div class="kopf-links">
+      <div class="marke">Wochenplaner · Unterricht</div>
+      <div class="kw-zeile">
+        <h1 id="kw-titel">Kalenderwoche</h1>
+        <span class="spanne" id="kw-spanne"></span>
+      </div>
+    </div>
+    <div class="kopf-rechts">
+      <div class="steuerung">
+        <button class="knopf-pfeil" id="zurueck" title="Vorherige Woche" aria-label="Vorherige Woche">&larr;</button>
+        <button class="knopf-heute" id="heute">Diese Woche</button>
+        <button class="knopf-pfeil" id="vor" title="Nächste Woche" aria-label="Nächste Woche">&rarr;</button>
+      </div>
+      <div class="fortschritt">
+        <span class="fortschritt-zahl" id="fortschritt-zahl">0 von 0 erledigt</span>
+        <div class="messer" role="progressbar" aria-labelledby="fortschritt-zahl"><span id="messer-balken"></span></div>
+      </div>
+      <div class="zustand" id="zustand">wird geladen</div>
+    </div>
+  </header>
+
+  <div class="woche" id="woche"></div>
+
+  <div class="unten">
+    <section>
+      <div class="bereich-kopf">
+        <h2>Vorausblick</h2>
+        <span class="bereich-hinweis">14 Tage</span>
+      </div>
+      <div id="vorausblick"></div>
+    </section>
+
+    <section>
+      <div class="bereich-kopf">
+        <h2>Lesestoff</h2>
+        <span class="bereich-hinweis">Artikel der Woche</span>
+      </div>
+      <div id="lesestoff"></div>
+    </section>
+  </div>
+
+  <footer class="fuss">
+    <span id="stand">&nbsp;</span>
+    <span>Feste Schwerpunkte sind mit einem Punkt markiert und bleiben jede Woche bestehen.</span>
+  </footer>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  var TAGE = [
+    { nr: 0, kuerzel: "mo", name: "Montag" },
+    { nr: 1, kuerzel: "di", name: "Dienstag" },
+    { nr: 2, kuerzel: "mi", name: "Mittwoch" },
+    { nr: 3, kuerzel: "do", name: "Donnerstag" },
+    { nr: 4, kuerzel: "fr", name: "Freitag" }
+  ];
+
+  var SCHWERPUNKTE = {
+    mo: ["Überblick über den Kalender verschaffen", "Agenda kontrollieren"],
+    di: ["Neueintritte einladen", "Sitzung vorbereiten"],
+    mi: ["Unterricht vorbereiten", "Vorinformation für die Do-Sitzung", "Gespräche führen"],
+    "do": ["Sitzung oder OTT wahrnehmen", "Agenda ausfüllen"],
+    fr: ["Offenes übertragen", "Kurze Rückschau", "Kommende Woche sichten"]
+  };
+
+  /* ----- Datum ----- */
+
+  function montagVon(d) {
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() - ((x.getDay() + 6) % 7));
+    return x;
+  }
+
+  function plusTage(d, n) {
+    var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+    x.setDate(x.getDate() + n);
+    return x;
+  }
+
+  function isoWoche(d) {
+    var t = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    t.setUTCDate(t.getUTCDate() - ((t.getUTCDay() + 6) % 7) + 3);
+    var jan4 = new Date(Date.UTC(t.getUTCFullYear(), 0, 4));
+    var wo = 1 + Math.round(((t - jan4) / 86400000 - 3 + ((jan4.getUTCDay() + 6) % 7)) / 7);
+    return { jahr: t.getUTCFullYear(), woche: wo };
+  }
+
+  function kwSchluessel(d) {
+    var w = isoWoche(d);
+    return w.jahr + "-KW" + (w.woche < 10 ? "0" : "") + w.woche;
+  }
+
+  function tagMonat(d) {
+    return ("0" + d.getDate()).slice(-2) + "." + ("0" + (d.getMonth() + 1)).slice(-2) + ".";
+  }
+
+  function isoDatum(d) {
+    return d.getFullYear() + "-" + ("0" + (d.getMonth() + 1)).slice(-2) + "-" + ("0" + d.getDate()).slice(-2);
+  }
+
+  function gleicherTag(a, b) {
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  }
+
+  var WOCHENTAGE_LANG = ["Sonntag", "Montag", "Dienstag", "Mittwoch", "Donnerstag", "Freitag", "Samstag"];
+
+  /* ----- Zustand ----- */
+
+  var heute = new Date();
+  var montagAktuell = montagVon(heute);
+  var montagAnzeige = montagVon(heute);
+  var woche = null;
+  var db = null;
+  var abmelden = null;
+  var schreibTimer = null;
+
+  function neueWoche(schluessel) {
+    var w = { kw: schluessel, tage: {}, vorausblick: [], lesestoff: [], aktualisiert: new Date().toISOString() };
+    TAGE.forEach(function (t) {
+      w.tage[t.kuerzel] = {
+        aufgaben: SCHWERPUNKTE[t.kuerzel].map(function (text, i) {
+          return { id: t.kuerzel + "-fix-" + i, text: text, fix: true, erledigt: false, dauer: "", anlass: "" };
+        }),
+        notiz: ""
+      };
+    });
+    return w;
+  }
+
+  function ergaenzeSchwerpunkte(w) {
+    TAGE.forEach(function (t) {
+      if (!w.tage[t.kuerzel]) w.tage[t.kuerzel] = { aufgaben: [], notiz: "" };
+      var tag = w.tage[t.kuerzel];
+      if (!Array.isArray(tag.aufgaben)) tag.aufgaben = [];
+      SCHWERPUNKTE[t.kuerzel].forEach(function (text, i) {
+        var id = t.kuerzel + "-fix-" + i;
+        if (!tag.aufgaben.some(function (a) { return a.id === id; })) {
+          tag.aufgaben.splice(i, 0, { id: id, text: text, fix: true, erledigt: false, dauer: "", anlass: "" });
+        }
+      });
+    });
+    if (!Array.isArray(w.vorausblick)) w.vorausblick = [];
+    if (!Array.isArray(w.lesestoff)) w.lesestoff = [];
+    return w;
+  }
+
+  /* ----- Speichern ----- */
+
+  function lokalLesen(schluessel) {
+    try {
+      var roh = window.localStorage.getItem("wochenplaner:" + schluessel);
+      return roh ? JSON.parse(roh) : null;
+    } catch (e) { return null; }
+  }
+
+  function lokalSchreiben(w) {
+    try { window.localStorage.setItem("wochenplaner:" + w.kw, JSON.stringify(w)); } catch (e) { /* voll oder gesperrt */ }
+  }
+
+  function zustandZeigen(text) {
+    document.getElementById("zustand").textContent = text;
+  }
+
+  function sichern() {
+    if (!woche) return;
+    woche.aktualisiert = new Date().toISOString();
+    lokalSchreiben(woche);
+    standZeigen();
+    if (!db) { zustandZeigen("lokal gespeichert"); return; }
+    if (schreibTimer) clearTimeout(schreibTimer);
+    var kopie = JSON.parse(JSON.stringify(woche));
+    schreibTimer = setTimeout(function () {
+      db.doc("wochen/" + kopie.kw).set(kopie).then(function () {
+        zustandZeigen("gespeichert");
+      })["catch"](function (e) {
+        zustandZeigen(e && e.code === "revoked" ? "nur lokal gespeichert" : "nicht gespeichert – erneut versuchen");
+      });
+    }, 500);
+  }
+
+  function standZeigen() {
+    var d = new Date(woche.aktualisiert);
+    document.getElementById("stand").textContent =
+      "Zuletzt geändert " + tagMonat(d) + " um " + ("0" + d.getHours()).slice(-2) + ":" + ("0" + d.getMinutes()).slice(-2) + " Uhr";
+  }
+
+  /* ----- Aufbau ----- */
+
+  function leer(el) { while (el.firstChild) el.removeChild(el.firstChild); }
+
+  function el(art, klasse, text) {
+    var k = document.createElement(art);
+    if (klasse) k.className = klasse;
+    if (text !== undefined && text !== null) k.textContent = text;
+    return k;
+  }
+
+  function zeichnen() {
+    var montag = montagAnzeige;
+    var freitag = plusTage(montag, 4);
+    var w = isoWoche(montag);
+
+    document.getElementById("kw-titel").textContent = "Kalenderwoche " + w.woche;
+    document.getElementById("kw-spanne").textContent =
+      tagMonat(montag) + " – " + tagMonat(freitag) + " " + freitag.getFullYear();
+
+    var raster = document.getElementById("woche");
+    leer(raster);
+
+    var alle = 0, fertig = 0;
+
+    TAGE.forEach(function (def) {
+      var datum = plusTage(montag, def.nr);
+      var tagDaten = woche.tage[def.kuerzel];
+      var spalte = el("div", "tag" + (gleicherTag(datum, heute) ? " heute" : ""));
+
+      var kopf = el("div", "tag-kopf");
+      var links = el("div");
+      links.appendChild(el("h3", "tag-name", def.name));
+      kopf.appendChild(links);
+      kopf.appendChild(el("span", "tag-datum", tagMonat(datum)));
+      spalte.appendChild(kopf);
+
+      var offen = tagDaten.aufgaben.filter(function (a) { return a.erledigt; }).length;
+      alle += tagDaten.aufgaben.length;
+      fertig += offen;
+      spalte.appendChild(el("div", "tag-zaehler", offen + "/" + tagDaten.aufgaben.length + " erledigt"));
+
+      var liste = el("ul", "liste");
+      tagDaten.aufgaben.forEach(function (aufgabe) {
+        liste.appendChild(aufgabeZeile(def.kuerzel, aufgabe));
+      });
+      spalte.appendChild(liste);
+
+      spalte.appendChild(zufuegenFeld(def.kuerzel, def.name));
+
+      var notizFeld = el("div", "notiz-feld");
+      notizFeld.appendChild(el("span", "feld-marke", "Notiz"));
+      var notiz = document.createElement("textarea");
+      notiz.value = tagDaten.notiz || "";
+      notiz.placeholder = "…";
+      notiz.setAttribute("aria-label", "Notiz für " + def.name);
+      var notizTimer = null;
+      notiz.addEventListener("input", function () {
+        tagDaten.notiz = notiz.value;
+        if (notizTimer) clearTimeout(notizTimer);
+        notizTimer = setTimeout(sichern, 600);
+      });
+      notizFeld.appendChild(notiz);
+      spalte.appendChild(notizFeld);
+
+      raster.appendChild(spalte);
+    });
+
+    document.getElementById("fortschritt-zahl").textContent = fertig + " von " + alle + " erledigt";
+    var balken = document.getElementById("messer-balken");
+    balken.style.width = (alle ? Math.round((fertig / alle) * 100) : 0) + "%";
+    balken.parentNode.setAttribute("aria-valuenow", String(fertig));
+    balken.parentNode.setAttribute("aria-valuemin", "0");
+    balken.parentNode.setAttribute("aria-valuemax", String(alle));
+
+    vorausblickZeichnen(montag);
+    lesestoffZeichnen();
+    standZeigen();
+  }
+
+  function aufgabeZeile(kuerzel, aufgabe) {
+    var li = el("li", aufgabe.erledigt ? "ab" : "");
+
+    var haken = document.createElement("input");
+    haken.type = "checkbox";
+    haken.className = "haken";
+    haken.checked = !!aufgabe.erledigt;
+    haken.setAttribute("aria-label", aufgabe.text);
+    haken.addEventListener("change", function () {
+      aufgabe.erledigt = haken.checked;
+      li.className = haken.checked ? "ab" : "";
+      sichern();
+      zaehlerAktualisieren();
+    });
+    li.appendChild(haken);
+
+    if (aufgabe.fix) li.appendChild(el("span", "fix-mal"));
+
+    var text = el("div", "aufgabe-text");
+    text.appendChild(el("span", "aufgabe-titel", aufgabe.text));
+    if (aufgabe.dauer || aufgabe.anlass) {
+      var zusatz = el("div", "aufgabe-zusatz");
+      if (aufgabe.dauer) zusatz.appendChild(el("span", "", aufgabe.dauer));
+      if (aufgabe.anlass) zusatz.appendChild(el("span", "", aufgabe.anlass));
+      text.appendChild(zusatz);
+    }
+    li.appendChild(text);
+
+    if (!aufgabe.fix) {
+      var weg = el("button", "weg", "×");
+      weg.title = "Aufgabe entfernen";
+      weg.setAttribute("aria-label", "Aufgabe entfernen: " + aufgabe.text);
+      weg.addEventListener("click", function () {
+        var liste = woche.tage[kuerzel].aufgaben;
+        var i = liste.indexOf(aufgabe);
+        if (i > -1) liste.splice(i, 1);
+        sichern();
+        zeichnen();
+      });
+      li.appendChild(weg);
+    }
+
+    return li;
+  }
+
+  function zufuegenFeld(kuerzel, name) {
+    var huelle = el("div", "zufuegen");
+    var eingabe = document.createElement("input");
+    eingabe.type = "text";
+    eingabe.placeholder = "Aufgabe hinzufügen";
+    eingabe.setAttribute("aria-label", "Aufgabe für " + name + " hinzufügen");
+    eingabe.addEventListener("keydown", function (ev) {
+      if (ev.key !== "Enter") return;
+      var text = eingabe.value.trim();
+      if (!text) return;
+      woche.tage[kuerzel].aufgaben.push({
+        id: kuerzel + "-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 6),
+        text: text, fix: false, erledigt: false, dauer: "", anlass: ""
+      });
+      eingabe.value = "";
+      sichern();
+      zeichnen();
+      var neu = document.querySelectorAll('.tag input[type="text"]');
+      for (var i = 0; i < neu.length; i++) {
+        if (neu[i].getAttribute("aria-label") === eingabe.getAttribute("aria-label")) { neu[i].focus(); break; }
+      }
+    });
+    huelle.appendChild(eingabe);
+    return huelle;
+  }
+
+  function zaehlerAktualisieren() {
+    var alle = 0, fertig = 0;
+    TAGE.forEach(function (t) {
+      var a = woche.tage[t.kuerzel].aufgaben;
+      alle += a.length;
+      fertig += a.filter(function (x) { return x.erledigt; }).length;
+    });
+    document.getElementById("fortschritt-zahl").textContent = fertig + " von " + alle + " erledigt";
+    document.getElementById("messer-balken").style.width = (alle ? Math.round((fertig / alle) * 100) : 0) + "%";
+
+    var spalten = document.querySelectorAll(".tag");
+    TAGE.forEach(function (t, i) {
+      if (!spalten[i]) return;
+      var a = woche.tage[t.kuerzel].aufgaben;
+      var f = a.filter(function (x) { return x.erledigt; }).length;
+      var z = spalten[i].querySelector(".tag-zaehler");
+      if (z) z.textContent = f + "/" + a.length + " erledigt";
+    });
+  }
+
+  function vorausblickZeichnen(montag) {
+    var ziel = document.getElementById("vorausblick");
+    leer(ziel);
+
+    if (!woche.vorausblick.length) {
+      var hinweis = el("p", "leer");
+      hinweis.appendChild(document.createTextNode("Noch keine Einträge. "));
+      var code = el("code", "", "/wochenplaner");
+      hinweis.appendChild(code);
+      hinweis.appendChild(document.createTextNode(
+        " liest Ihren Kalender und trägt hier Teamtage, OTT-Termine, Ferien und alles Weitere der nächsten 14 Tage ein."));
+      ziel.appendChild(hinweis);
+      return;
+    }
+
+    var liste = el("ul", "eintraege");
+    woche.vorausblick
+      .slice()
+      .sort(function (a, b) { return String(a.datum).localeCompare(String(b.datum)); })
+      .forEach(function (e) {
+        var li = document.createElement("li");
+        var d = new Date(e.datum + "T00:00:00");
+        var gueltig = !isNaN(d.getTime());
+        li.appendChild(el("span", "e-datum",
+          gueltig ? WOCHENTAGE_LANG[d.getDay()].slice(0, 2) + " " + tagMonat(d) : String(e.datum || "")));
+
+        var inhalt = el("div", "e-inhalt");
+        inhalt.appendChild(el("div", "e-titel", e.titel || ""));
+        if (e.hinweis) inhalt.appendChild(el("div", "e-hinweis", e.hinweis));
+        li.appendChild(inhalt);
+
+        if (gueltig) {
+          var tage = Math.round((d - new Date(heute.getFullYear(), heute.getMonth(), heute.getDate())) / 86400000);
+          var beschriftung = tage === 0 ? "heute" : tage === 1 ? "morgen" : tage < 0 ? "vorbei" : "in " + tage + " Tagen";
+          li.appendChild(el("span", "chip" + (tage >= 0 && tage < 5 ? " bald" : ""), beschriftung));
+        }
+        liste.appendChild(li);
+      });
+    ziel.appendChild(liste);
+  }
+
+  function lesestoffZeichnen() {
+    var ziel = document.getElementById("lesestoff");
+    leer(ziel);
+
+    if (!woche.lesestoff.length) {
+      var hinweis = el("p", "leer");
+      hinweis.appendChild(document.createTextNode("Noch keine Artikel. "));
+      hinweis.appendChild(el("code", "", "/lesestoff"));
+      hinweis.appendChild(document.createTextNode(
+        " durchsucht nachrichtenleicht.de, quarks.de, spektrum.de, SRF und die Fachportale zur Erwachsenenbildung und trägt die Auswahl hier ein."));
+      ziel.appendChild(hinweis);
+      return;
+    }
+
+    var liste = el("ul", "lese");
+    woche.lesestoff.forEach(function (a) {
+      var li = document.createElement("li");
+      var kopf = el("div", "l-kopf");
+      var titel = el("div", "l-titel");
+      if (a.link) {
+        var link = el("a", "", a.titel || a.link);
+        link.href = a.link;
+        link.target = "_blank";
+        link.rel = "noopener noreferrer";
+        titel.appendChild(link);
+      } else {
+        titel.textContent = a.titel || "";
+      }
+      kopf.appendChild(titel);
+      if (a.quelle) kopf.appendChild(el("span", "l-quelle", a.quelle));
+      li.appendChild(kopf);
+      if (a.text) li.appendChild(el("p", "l-text", a.text));
+      if (a.einsatz) li.appendChild(el("p", "l-einsatz", a.einsatz));
+      liste.appendChild(li);
+    });
+    ziel.appendChild(liste);
+  }
+
+  /* ----- Woche laden ----- */
+
+  function wocheLaden() {
+    var schluessel = kwSchluessel(montagAnzeige);
+    if (abmelden) { abmelden(); abmelden = null; }
+
+    woche = ergaenzeSchwerpunkte(lokalLesen(schluessel) || neueWoche(schluessel));
+    woche.kw = schluessel;
+    zeichnen();
+
+    if (!db) { zustandZeigen("lokal gespeichert"); return; }
+
+    zustandZeigen("wird geladen");
+    abmelden = db.doc("wochen/" + schluessel).onSnapshot(function (schnapp) {
+      if (schnapp.exists) {
+        var daten = schnapp.data();
+        if (daten && daten.kw === kwSchluessel(montagAnzeige)) {
+          woche = ergaenzeSchwerpunkte(JSON.parse(JSON.stringify(daten)));
+          lokalSchreiben(woche);
+          zeichnen();
+        }
+      }
+      zustandZeigen("gespeichert");
+    }, function (fehler) {
+      zustandZeigen(fehler && fehler.code === "revoked" ? "nur lokal gespeichert" : "lokal gespeichert");
+      abmelden = null;
+    });
+  }
+
+  /* ----- Bedienung ----- */
+
+  document.getElementById("zurueck").addEventListener("click", function () {
+    montagAnzeige = plusTage(montagAnzeige, -7);
+    wocheLaden();
+  });
+  document.getElementById("vor").addEventListener("click", function () {
+    montagAnzeige = plusTage(montagAnzeige, 7);
+    wocheLaden();
+  });
+  document.getElementById("heute").addEventListener("click", function () {
+    montagAnzeige = montagVon(new Date());
+    wocheLaden();
+  });
+
+  /* ----- Start ----- */
+
+  wocheLaden();
+
+  if (window.claude && typeof window.claude.use === "function") {
+    window.claude.use("db").then(function (store) {
+      if (!store) return;
+      db = store;
+      wocheLaden();
+    })["catch"](function () { /* bleibt lokal */ });
+  }
+})();
+</script>
