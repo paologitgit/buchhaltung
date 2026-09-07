@@ -15,12 +15,10 @@ Ohne Angabe: der heutige Tag. Bei `woche`: alle fünf Tage.
 1. **Datum bestimmen.** Ermitteln Sie das heutige Datum und den Wochentag, ohne zu raten
    (`date +"%A, %d.%m.%Y (KW %V)"`).
 
-2. **Kalender lesen** nach CLAUDE.md Abschnitt 3, in dieser Reihenfolge:
-   Google Calendar → `.ics` aus dem Drive-Ordner `Wochenplaner/Kalender/` → Gmail → Nachfrage.
-   Nennen Sie zu Beginn der Antwort in einer Zeile, welche Quellen tatsächlich gelesen wurden
-   und welche fehlten. Fehlt der Google-Calendar-Connector, weisen Sie darauf hin, dass er in
-   den Connector-Einstellungen dieses Chats eingeschaltet werden muss.
-   **Erfinden Sie unter keinen Umständen Termine.**
+2. **Kalender lesen** nach CLAUDE.md Abschnitt 3: `list_calendars`, dann `list_events` über
+   **alle** Kalender des Kontos – die laufende Woche und die nächsten 14 Tage, Zeitzone
+   `Europe/Zurich`. Nennen Sie zu Beginn der Antwort in einer Zeile, welche Kalender gelesen
+   wurden. **Erfinden Sie unter keinen Umständen Termine.**
 
 3. **Immer ausgeben, unabhängig vom gewählten Tag:**
    - Wochenübersicht Montag bis Freitag der laufenden Woche, je Tag verdichtet:

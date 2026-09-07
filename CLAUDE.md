@@ -34,22 +34,20 @@ Im Zweifel: neutral formulieren und nachfragen.
 
 ## 3. Datenquellen für den Kalender
 
-In dieser Reihenfolge abfragen und zusammenführen:
+**Google Calendar ist die massgebende Quelle.** Alle Termine stammen von dort.
 
-1. **Google Calendar** über den Connector. Hauptquelle.
-   Ist der Connector nicht aktiv, den Hinweis geben, dass er in den Connector-Einstellungen
-   des Chats eingeschaltet werden muss – nicht raten und nicht schätzen.
-2. **macOS-Kalender über Google Drive.** Diese Sitzung läuft in der Cloud und hat keinen
-   Zugriff auf den Mac. Rein lokale Kalender werden in Kalender.app über
-   *Ablage → Exportieren → Exportieren…* als `.ics` gesichert und im Drive-Ordner
-   `Wochenplaner/Kalender/` abgelegt. Dort nach `.ics`-Dateien suchen, die neueste lesen und
-   mit den Google-Terminen zusammenführen. Doppelte Termine (gleicher Titel, gleiche Zeit)
-   nur einmal ausweisen.
-3. **Gmail**, falls aktiv: Termineinladungen und Sitzungsunterlagen der laufenden Woche.
-4. **Nachfrage.** Steht keine Quelle zur Verfügung, die Termine erfragen. Nie erfundene
-   Termine ausgeben.
+1. Mit `list_calendars` die Kalender des Kontos ermitteln und **alle** berücksichtigen,
+   nicht nur den Hauptkalender – Unterricht, Sitzungen und Teamtermine liegen oft in
+   getrennten Kalendern.
+2. Mit `list_events` je Kalender den benötigten Zeitraum lesen: die laufende Woche für den
+   Wochenüberblick, 14 Tage ab heute für den Vorausblick. Zeitzone `Europe/Zurich`.
+   Ganztägige Termine sind an ihrem Datumsformat ohne Uhrzeit erkennbar.
+3. **Gmail**, falls aktiv: ergänzend für Termineinladungen und Sitzungsunterlagen der
+   laufenden Woche. Kein Ersatz für den Kalender.
+4. Ist der Connector einmal nicht erreichbar, das melden und die Termine erfragen.
+   **Nie erfundene Termine ausgeben.**
 
-Bei jedem Lauf am Anfang nennen, welche Quellen tatsächlich gelesen wurden.
+Bei jedem Lauf am Anfang nennen, welche Kalender gelesen wurden.
 
 ## 4. Tagesschwerpunkte
 
