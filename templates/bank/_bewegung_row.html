@@ -6,7 +6,10 @@
   <td><a href="{% url 'bewegung_detail' b.pk %}">{{ b.description|truncatechars:60 }}</a></td>
   <td>{{ b.amount }} {{ b.currency }}</td>
   <td>{{ b.bank_account.name }}</td>
-  <td>{{ b.get_status_display }}</td>
+  <td>
+    {{ b.get_status_display }}
+    {% if b.journal_entry_id %}<br><span class="muted" style="font-size:0.85em;">Buchung Nr. {{ b.journal_entry_id }}</span>{% endif %}
+  </td>
   <td>
     {% if not b.quittung_erforderlich %}<span class="badge">nicht nötig</span>
     {% elif b.has_quittung %}<span class="badge ok">vorhanden</span>
