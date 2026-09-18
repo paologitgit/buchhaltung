@@ -12,7 +12,7 @@ from core.models import CompanySettings
 from documents.forms import BelegUploadForm
 from documents.models import Beleg
 from ledger.models import Account
-from ledger.services import book_bewegung
+from ledger.services import book_bewegung, rebook_bewegung
 from vat.models import VatCode
 
 from .forms import BewegungBookingForm, CSVImportForm
@@ -156,8 +156,21 @@ def bewegung_detail(request, pk):
     has_quittung = any(b.document_type == Beleg.DocumentType.QUITTUNG for b in belege)
     has_bankbeleg = any(b.document_type == Beleg.DocumentType.BANKBELEG for b in belege)
     can_book = request.user.has_write_access() and bewegung.status == Bewegung.Status.OFFEN
+    can_rebook = (
+        request.user.has_write_access()
+        and bewegung.status == Bewegung.Status.BOOKED
+        and bewegung.journal_entry_id
+        and not bewegung.journal_entry.is_locked
+    )
 
     booking_form = BewegungBookingForm() if can_book else None
+    rebook_form = (
+        BewegungBookingForm(
+            initial={"gegenkonto": bewegung.assigned_account_id, "vat_code": bewegung.vat_code_id}
+        )
+        if can_rebook
+        else None
+    )
     upload_form = BelegUploadForm() if request.user.has_write_access() else None
 
     if request.method == "POST" and request.user.has_write_access():
@@ -194,6 +207,21 @@ def bewegung_detail(request, pk):
                 except ValidationError as exc:
                     for error in exc.messages:
                         messages.error(request, error)
+        elif action == "rebook" and can_rebook:
+            rebook_form = BewegungBookingForm(request.POST)
+            if rebook_form.is_valid():
+                try:
+                    rebook_bewegung(
+                        bewegung,
+                        gegenkonto=rebook_form.cleaned_data["gegenkonto"],
+                        vat_code=rebook_form.cleaned_data.get("vat_code"),
+                        user=request.user,
+                    )
+                    messages.success(request, "Bewegung wurde umgebucht.")
+                    return redirect("bewegung_detail", pk=pk)
+                except ValidationError as exc:
+                    for error in exc.messages:
+                        messages.error(request, error)
         elif action == "ignore" and bewegung.status == Bewegung.Status.OFFEN:
             bewegung.status = Bewegung.Status.IGNORED
             bewegung.save(update_fields=["status"])
@@ -214,6 +242,8 @@ def bewegung_detail(request, pk):
         "has_quittung": has_quittung,
         "has_bankbeleg": has_bankbeleg,
         "booking_form": booking_form,
+        "rebook_form": rebook_form,
+        "can_rebook": can_rebook,
         "upload_form": upload_form,
         "can_book": can_book,
         "document_type_choices": Beleg.DocumentType.choices,

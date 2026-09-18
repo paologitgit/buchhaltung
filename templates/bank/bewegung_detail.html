@@ -152,6 +152,17 @@
 </form>
 {% endif %}
 
+{% if can_rebook %}
+<h2>Umbuchen</h2>
+<p class="muted">Falsches Gegenkonto oder falscher MWST-Code erwischt? Hier kannst du die bestehende Buchung durch eine neue ersetzen.</p>
+<form method="post" onsubmit="return confirm('Bewegung umbuchen? Die bisherige Buchung wird durch die neue ersetzt.');">
+  {% csrf_token %}
+  <input type="hidden" name="action" value="rebook">
+  {{ rebook_form.as_p }}
+  <button type="submit" class="btn secondary">Umbuchen</button>
+</form>
+{% endif %}
+
 {% if user.has_write_access and bewegung.status != "BOOKED" %}
 <form method="post" action="{% url 'bewegung_delete' bewegung.pk %}" onsubmit="return confirm('Diese Bewegung wirklich löschen?');" style="margin-top:1.5rem;">
   {% csrf_token %}

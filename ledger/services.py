@@ -86,3 +86,24 @@ def book_bewegung(bewegung, gegenkonto, vat_code, user):
     bewegung.save(update_fields=["journal_entry", "assigned_account", "vat_code", "status"])
 
     return entry
+
+
+@transaction.atomic
+def rebook_bewegung(bewegung, gegenkonto, vat_code, user):
+    """Bucht eine bereits verbuchte Bewegung auf ein anderes Gegenkonto um:
+    die alte Buchung wird ersetzt (gelöscht) und eine neue erstellt. Nur
+    möglich, solange das Geschäftsjahr nicht abgeschlossen ist."""
+    old_entry = bewegung.journal_entry
+    if old_entry is None:
+        raise ValidationError("Diese Bewegung ist noch nicht verbucht -- nutze das normale Verbuchen.")
+    if old_entry.is_locked:
+        raise ValidationError(
+            "Die Buchung ist gesperrt (Geschäftsjahr abgeschlossen) und kann nicht umgebucht werden."
+        )
+
+    bewegung.journal_entry = None
+    bewegung.status = bewegung.Status.OFFEN
+    bewegung.save(update_fields=["journal_entry", "status"])
+    old_entry.delete()
+
+    return book_bewegung(bewegung, gegenkonto, vat_code, user)
