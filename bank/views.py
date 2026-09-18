@@ -75,7 +75,7 @@ def _beleg_exists(document_type):
 def bewegung_list(request):
     bankbeleg_exists = _beleg_exists(Beleg.DocumentType.BANKBELEG)
     quittung_exists = _beleg_exists(Beleg.DocumentType.QUITTUNG)
-    qs = Bewegung.objects.select_related("bank_account", "assigned_account", "vat_code", "journal_entry").annotate(
+    qs = Bewegung.objects.select_related("bank_account", "assigned_account", "vat_code").annotate(
         has_bankbeleg=bankbeleg_exists, has_quittung=quittung_exists
     )
 

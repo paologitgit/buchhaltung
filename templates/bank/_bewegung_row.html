@@ -8,7 +8,7 @@
   <td>{{ b.bank_account.name }}</td>
   <td>
     {{ b.get_status_display }}
-    {% if b.journal_entry_id %}<br><span class="muted" style="font-size:0.85em;">Buchung Nr. {{ b.journal_entry_id }}</span>{% endif %}
+    {% if b.assigned_account_id %}<br><span class="muted" style="font-size:0.85em;">Konto {{ b.assigned_account.code }}</span>{% endif %}
   </td>
   <td>
     {% if not b.quittung_erforderlich %}<span class="badge">nicht nötig</span>
