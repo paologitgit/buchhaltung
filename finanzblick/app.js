@@ -1525,7 +1525,8 @@
       reader.onload = function () {
         try {
           var data = JSON.parse(reader.result);
-          if (Array.isArray(data.rules)) state.rules = data.rules;
+          var imported = FB.categories.sanitizeRules(data.rules);
+          if (imported) state.rules = imported;
           if (data.overrides) state.overrides = data.overrides;
           saveStorage(STORAGE.rules, state.rules);
           saveStorage(STORAGE.overrides, state.overrides);
@@ -1576,7 +1577,9 @@
     state.persist = !!settings.persist;
     $("persist-toggle").checked = state.persist;
 
-    state.rules = loadStorage(STORAGE.rules, null) || FB.categories.defaultRules.slice();
+    state.rules =
+      FB.categories.sanitizeRules(loadStorage(STORAGE.rules, null)) ||
+      FB.categories.defaultRules.slice();
     state.overrides = loadStorage(STORAGE.overrides, {}) || {};
 
     var ruleCategory = $("rule-category");

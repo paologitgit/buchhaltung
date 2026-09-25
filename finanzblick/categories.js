@@ -286,12 +286,39 @@
     return new RegExp("(?:^| )" + escapeRegex(normalized) + tail);
   }
 
+  /* Der Zwischenspeicher liegt bewusst neben den Regeln und nicht an ihnen:
+   * Regeln werden als JSON gesichert, und ein daran gehängter Suchausdruck
+   * würde dabei zu einem leeren Objekt zerfallen, das beim Laden wie ein
+   * gültiger Ausdruck aussieht. */
+  var regexCache = {};
+
   function ruleRegex(rule) {
-    if (rule.__source !== rule.pattern) {
-      rule.__source = rule.pattern;
-      rule.__regex = patternRegex(rule.pattern);
+    var pattern = String(rule.pattern == null ? "" : rule.pattern);
+    if (!Object.prototype.hasOwnProperty.call(regexCache, pattern)) {
+      regexCache[pattern] = patternRegex(pattern);
     }
-    return rule.__regex;
+    return regexCache[pattern];
+  }
+
+  /**
+   * Bringt geladene Regeln auf die erwartete Form. Sie stammen aus dem lokalen
+   * Speicher oder einer JSON-Datei und können alles Mögliche enthalten –
+   * inklusive Resten älterer Programmstände.
+   */
+  function sanitizeRules(rules) {
+    if (!Array.isArray(rules)) return null;
+    var clean = rules
+      .filter(function (rule) {
+        return rule && typeof rule.pattern === "string" && rule.pattern.trim();
+      })
+      .map(function (rule) {
+        return {
+          pattern: rule.pattern,
+          category: CATEGORIES.indexOf(rule.category) > -1 ? rule.category : "Sonstiges",
+          sign: rule.sign === "in" || rule.sign === "out" ? rule.sign : "any",
+        };
+      });
+    return clean.length ? clean : null;
   }
 
   /** Prüft eine Regel gegen einen bereits normalisierten Buchungstext. */
@@ -419,6 +446,7 @@
   FB.categories = {
     list: CATEGORIES,
     normalizeText: normalizeText,
+    sanitizeRules: sanitizeRules,
     defaultRules: DEFAULT_RULES,
     categorize: categorize,
     normalizeMerchant: normalizeMerchant,

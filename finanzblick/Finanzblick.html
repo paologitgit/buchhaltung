@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- Finanzblick – erzeugt von build-standalone.py aus den Dateien des
-     Ordners finanzblick/ (Quellstand: 8c1caf1 (mit ungespeicherten Änderungen)).
+     Ordners finanzblick/ (Quellstand: ba6b22f (mit ungespeicherten Änderungen)).
      Diese Datei nicht von Hand bearbeiten, sondern die Quelldateien
      ändern und das Skript erneut ausführen. -->
 
@@ -1622,12 +1622,39 @@ input:focus-visible, select:focus-visible {
     return new RegExp("(?:^| )" + escapeRegex(normalized) + tail);
   }
 
+  /* Der Zwischenspeicher liegt bewusst neben den Regeln und nicht an ihnen:
+   * Regeln werden als JSON gesichert, und ein daran gehängter Suchausdruck
+   * würde dabei zu einem leeren Objekt zerfallen, das beim Laden wie ein
+   * gültiger Ausdruck aussieht. */
+  var regexCache = {};
+
   function ruleRegex(rule) {
-    if (rule.__source !== rule.pattern) {
-      rule.__source = rule.pattern;
-      rule.__regex = patternRegex(rule.pattern);
+    var pattern = String(rule.pattern == null ? "" : rule.pattern);
+    if (!Object.prototype.hasOwnProperty.call(regexCache, pattern)) {
+      regexCache[pattern] = patternRegex(pattern);
     }
-    return rule.__regex;
+    return regexCache[pattern];
+  }
+
+  /**
+   * Bringt geladene Regeln auf die erwartete Form. Sie stammen aus dem lokalen
+   * Speicher oder einer JSON-Datei und können alles Mögliche enthalten –
+   * inklusive Resten älterer Programmstände.
+   */
+  function sanitizeRules(rules) {
+    if (!Array.isArray(rules)) return null;
+    var clean = rules
+      .filter(function (rule) {
+        return rule && typeof rule.pattern === "string" && rule.pattern.trim();
+      })
+      .map(function (rule) {
+        return {
+          pattern: rule.pattern,
+          category: CATEGORIES.indexOf(rule.category) > -1 ? rule.category : "Sonstiges",
+          sign: rule.sign === "in" || rule.sign === "out" ? rule.sign : "any",
+        };
+      });
+    return clean.length ? clean : null;
   }
 
   /** Prüft eine Regel gegen einen bereits normalisierten Buchungstext. */
@@ -1755,6 +1782,7 @@ input:focus-visible, select:focus-visible {
   FB.categories = {
     list: CATEGORIES,
     normalizeText: normalizeText,
+    sanitizeRules: sanitizeRules,
     defaultRules: DEFAULT_RULES,
     categorize: categorize,
     normalizeMerchant: normalizeMerchant,
@@ -3926,7 +3954,8 @@ input:focus-visible, select:focus-visible {
       reader.onload = function () {
         try {
           var data = JSON.parse(reader.result);
-          if (Array.isArray(data.rules)) state.rules = data.rules;
+          var imported = FB.categories.sanitizeRules(data.rules);
+          if (imported) state.rules = imported;
           if (data.overrides) state.overrides = data.overrides;
           saveStorage(STORAGE.rules, state.rules);
           saveStorage(STORAGE.overrides, state.overrides);
@@ -3977,7 +4006,9 @@ input:focus-visible, select:focus-visible {
     state.persist = !!settings.persist;
     $("persist-toggle").checked = state.persist;
 
-    state.rules = loadStorage(STORAGE.rules, null) || FB.categories.defaultRules.slice();
+    state.rules =
+      FB.categories.sanitizeRules(loadStorage(STORAGE.rules, null)) ||
+      FB.categories.defaultRules.slice();
     state.overrides = loadStorage(STORAGE.overrides, {}) || {};
 
     var ruleCategory = $("rule-category");
