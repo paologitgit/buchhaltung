@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Finanzblick – Bank-CSV offline auswerten</title>
+<!-- Als Data-URI eingebettet: keine zusätzliche Datei, kein 404 im Serverlog. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M6 22h4v4H6zm7-6h4v10h-4zm7-8h4v18h-4z' fill='white'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar__inner">
+    <div>
+      <h1 class="topbar__title">Finanzblick</h1>
+      <p class="topbar__subtitle">Bank-CSV auswerten – vollständig offline, die Daten bleiben auf diesem Rechner.</p>
+    </div>
+    <div class="topbar__actions">
+      <button type="button" class="button" id="theme-toggle" aria-label="Farbschema wechseln">Dunkel / Hell</button>
+    </div>
+  </div>
+</header>
+
+<main class="page">
+
+  <!-- ------------------------------------------------------------ Import -- -->
+  <section class="card" id="import-card" aria-labelledby="import-title">
+    <h2 class="card__title" id="import-title">CSV-Dateien laden</h2>
+    <div class="dropzone" id="dropzone" tabindex="0" role="button"
+         aria-label="CSV-Dateien hierher ziehen oder zum Auswählen klicken">
+      <p class="dropzone__hint"><strong>CSV hierher ziehen</strong> oder klicken zum Auswählen</p>
+      <p class="dropzone__note">Mehrere Dateien und mehrere Konten sind möglich. Doppelte Buchungen werden erkannt.</p>
+      <input type="file" id="file-input" accept=".csv,.txt,text/csv" multiple hidden>
+    </div>
+    <div class="import-actions">
+      <button type="button" class="button" id="demo-button">Beispieldaten laden</button>
+      <button type="button" class="button button--ghost" id="clear-button" hidden>Alle Daten entfernen</button>
+      <label class="checkbox">
+        <input type="checkbox" id="persist-toggle">
+        <span>Buchungen im Browser speichern (bleiben nach dem Schliessen erhalten)</span>
+      </label>
+    </div>
+    <div id="import-messages" class="messages" role="status" aria-live="polite"></div>
+    <div id="file-list" class="file-list"></div>
+  </section>
+
+  <!-- ------------------------------------------------------------ Filter -- -->
+  <section class="filters" id="filters" hidden aria-label="Filter">
+    <div class="filters__row">
+      <label class="field">
+        <span class="field__label">Zeitraum</span>
+        <select id="filter-range">
+          <option value="all">Gesamter Zeitraum</option>
+          <option value="ytd">Laufendes Jahr</option>
+          <option value="12m">Letzte 12 Monate</option>
+          <option value="6m">Letzte 6 Monate</option>
+          <option value="3m">Letzte 3 Monate</option>
+          <option value="custom">Benutzerdefiniert</option>
+        </select>
+      </label>
+      <label class="field" id="field-from" hidden>
+        <span class="field__label">Von</span>
+        <input type="date" id="filter-from">
+      </label>
+      <label class="field" id="field-to" hidden>
+        <span class="field__label">Bis</span>
+        <input type="date" id="filter-to">
+      </label>
+      <label class="field">
+        <span class="field__label">Konto</span>
+        <select id="filter-account"><option value="">Alle Konten</option></select>
+      </label>
+      <label class="field">
+        <span class="field__label">Kategorie</span>
+        <select id="filter-category"><option value="">Alle Kategorien</option></select>
+      </label>
+      <label class="field">
+        <span class="field__label">Zuordnung</span>
+        <select id="filter-assignment">
+          <option value="">Alle</option>
+          <option value="offen">Nur nicht zugeordnete</option>
+          <option value="regel">Nur per Regel</option>
+          <option value="manuell">Nur manuell gesetzte</option>
+        </select>
+      </label>
+      <label class="field field--grow">
+        <span class="field__label">Suche im Buchungstext</span>
+        <input type="search" id="filter-search" placeholder="z.B. Miete, Migros, Versicherung">
+      </label>
+      <label class="checkbox">
+        <input type="checkbox" id="filter-exclude-transfers">
+        <span>Umbuchungen ausklammern</span>
+      </label>
+      <button type="button" class="button button--ghost" id="filter-reset">Filter zurücksetzen</button>
+    </div>
+    <p class="filters__summary" id="filter-summary"></p>
+  </section>
+
+  <!-- -------------------------------------------------------------- KPIs -- -->
+  <section class="kpis" id="kpis" hidden aria-label="Kennzahlen">
+    <div class="card kpi kpi--hero">
+      <p class="kpi__label">Netto im Zeitraum</p>
+      <p class="kpi__hero" id="kpi-net">–</p>
+      <p class="kpi__meta" id="kpi-net-meta"></p>
+    </div>
+    <div class="card kpi">
+      <p class="kpi__label">Einnahmen</p>
+      <p class="kpi__value" id="kpi-in">–</p>
+      <p class="kpi__meta" id="kpi-in-meta"></p>
+    </div>
+    <div class="card kpi">
+      <p class="kpi__label">Ausgaben</p>
+      <p class="kpi__value" id="kpi-out">–</p>
+      <p class="kpi__meta" id="kpi-out-meta"></p>
+    </div>
+    <div class="card kpi">
+      <p class="kpi__label">Ausgaben pro Monat</p>
+      <p class="kpi__value" id="kpi-burn">–</p>
+      <p class="kpi__meta" id="kpi-burn-meta"></p>
+    </div>
+    <div class="card kpi">
+      <p class="kpi__label">Sparquote</p>
+      <p class="kpi__value" id="kpi-rate">–</p>
+      <p class="kpi__meta" id="kpi-rate-meta"></p>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- Charts -- -->
+  <div class="grid" id="charts" hidden>
+
+    <section class="card chart-card chart-card--wide" aria-labelledby="chart-balance-title">
+      <div class="card__head">
+        <div>
+          <h2 class="card__title" id="chart-balance-title">Saldoverlauf</h2>
+          <p class="card__subtitle" id="chart-balance-subtitle">Kontostand über die Zeit</p>
+        </div>
+        <button type="button" class="button button--ghost button--small" data-table-toggle="table-balance">Tabelle</button>
+      </div>
+      <div class="chart" id="chart-balance"></div>
+      <div class="table-wrap" id="table-balance" hidden></div>
+    </section>
+
+    <section class="card chart-card chart-card--wide" aria-labelledby="chart-monthly-title">
+      <div class="card__head">
+        <div>
+          <h2 class="card__title" id="chart-monthly-title">Einnahmen und Ausgaben pro Monat</h2>
+          <p class="card__subtitle">Beide Reihen in derselben Währung auf einer Achse</p>
+        </div>
+        <button type="button" class="button button--ghost button--small" data-table-toggle="table-monthly">Tabelle</button>
+      </div>
+      <div class="legend" id="legend-monthly"></div>
+      <div class="chart" id="chart-monthly"></div>
+      <div class="table-wrap" id="table-monthly" hidden></div>
+    </section>
+
+    <section class="card chart-card" aria-labelledby="chart-net-title">
+      <div class="card__head">
+        <div>
+          <h2 class="card__title" id="chart-net-title">Monatssaldo</h2>
+          <p class="card__subtitle">Überschuss über, Defizit unter der Nulllinie</p>
+        </div>
+        <button type="button" class="button button--ghost button--small" data-table-toggle="table-net">Tabelle</button>
+      </div>
+      <div class="chart" id="chart-net"></div>
+      <div class="table-wrap" id="table-net" hidden></div>
+    </section>
+
+    <section class="card chart-card" aria-labelledby="chart-categories-title">
+      <div class="card__head">
+        <div>
+          <h2 class="card__title" id="chart-categories-title">Ausgaben nach Kategorie</h2>
+          <p class="card__subtitle" id="chart-categories-subtitle">Summe im gewählten Zeitraum</p>
+        </div>
+        <button type="button" class="button button--ghost button--small" data-table-toggle="table-categories">Tabelle</button>
+      </div>
+      <div class="chart" id="chart-categories"></div>
+      <div class="table-wrap" id="table-categories" hidden></div>
+    </section>
+
+  </div>
+
+  <!-- --------------------------------------------------------- Fixkosten -- -->
+  <section class="card" id="recurring-card" hidden aria-labelledby="recurring-title">
+    <div class="card__head">
+      <div>
+        <h2 class="card__title" id="recurring-title">Wiederkehrende Zahlungen</h2>
+        <p class="card__subtitle">Ausgaben, die in mindestens drei Monaten mit ähnlichem Betrag auftreten – Fixkosten und häufige Läden</p>
+      </div>
+      <p class="card__figure" id="recurring-total"></p>
+    </div>
+    <div class="table-wrap" id="table-recurring"></div>
+  </section>
+
+  <!-- ------------------------------------------------------ Top-Ausgaben -- -->
+  <section class="card" id="top-card" hidden aria-labelledby="top-title">
+    <h2 class="card__title" id="top-title">Grösste Empfänger</h2>
+    <p class="card__subtitle">Zusammengefasst nach Buchungstext</p>
+    <div class="table-wrap" id="table-top"></div>
+  </section>
+
+  <!-- ------------------------------------------------------- Buchungen --- -->
+  <section class="card" id="transactions-card" hidden aria-labelledby="transactions-title">
+    <div class="card__head">
+      <div>
+        <h2 class="card__title" id="transactions-title">Buchungen</h2>
+        <p class="card__subtitle" id="transactions-count"></p>
+      </div>
+      <button type="button" class="button button--ghost button--small" id="export-button">Als CSV exportieren</button>
+    </div>
+    <div class="table-wrap" id="table-transactions"></div>
+    <div class="table-more">
+      <button type="button" class="button button--ghost" id="more-button" hidden>Weitere 200 Buchungen anzeigen</button>
+    </div>
+  </section>
+
+  <!-- ----------------------------------------------------------- Regeln -- -->
+  <section class="card" id="rules-card" hidden aria-labelledby="rules-title">
+    <div class="card__head">
+      <div>
+        <h2 class="card__title" id="rules-title">Kategorie-Regeln</h2>
+        <p class="card__subtitle">Erste passende Regel gewinnt. Änderungen werden lokal gespeichert.</p>
+      </div>
+      <div class="card__head-actions">
+        <button type="button" class="button button--ghost button--small" id="rules-export">Regeln sichern</button>
+        <button type="button" class="button button--ghost button--small" id="rules-import-button">Regeln laden</button>
+        <button type="button" class="button button--ghost button--small" id="rules-reset">Auf Standard zurücksetzen</button>
+        <input type="file" id="rules-import" accept=".json,application/json" hidden>
+      </div>
+    </div>
+    <form class="rule-form" id="rule-form">
+      <label class="field field--grow">
+        <span class="field__label">Stichwort im Buchungstext</span>
+        <input type="text" id="rule-pattern" placeholder="z.B. mietzins" required>
+      </label>
+      <label class="field">
+        <span class="field__label">Kategorie</span>
+        <select id="rule-category"></select>
+      </label>
+      <label class="field">
+        <span class="field__label">Gilt für</span>
+        <select id="rule-sign">
+          <option value="any">Alle Buchungen</option>
+          <option value="out">Nur Ausgaben</option>
+          <option value="in">Nur Einnahmen</option>
+        </select>
+      </label>
+      <button type="submit" class="button">Regel hinzufügen</button>
+    </form>
+    <div class="table-wrap" id="table-rules"></div>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>
+    Finanzblick arbeitet vollständig im Browser: keine Server, keine Netzwerkaufrufe, keine Übertragung
+    von Kontodaten. Der Ordner lässt sich kopieren und auf einem Rechner ohne Internetverbindung öffnen.
+  </p>
+</footer>
+
+<script src="parser.js"></script>
+<script src="categories.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
