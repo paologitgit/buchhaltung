@@ -9,8 +9,14 @@ nicht.
 
 Zwei Wege, beide ohne Installation:
 
-**Direkt aus der Datei.** `finanzblick/index.html` im Browser öffnen – per
-Doppelklick oder über „Datei öffnen". Reicht für den Alltag völlig aus.
+**Als einzelne Datei.** `Finanzblick.html` doppelklicken. Darin stecken alle
+anderen Dateien bereits drin, es braucht also weder Server noch Nachbardateien –
+die eine Datei lässt sich kopieren, verschicken oder auf einen USB-Stick legen.
+Der einfachste Weg.
+
+**Direkt aus den Quelldateien.** `finanzblick/index.html` im Browser öffnen – per
+Doppelklick oder über „Datei öffnen". Gleiche Anwendung, nur eben verteilt auf
+mehrere Dateien.
 
 **Über localhost.** Im Ordner `finanzblick/`:
 
@@ -152,9 +158,16 @@ Regeln und manuelle Zuweisungen werden unabhängig davon immer lokal gespeichert
 | `charts.js` | Diagramme als handgezeichnetes SVG, ohne Bibliothek |
 | `app.js` | Zustand, Filter, Kennzahlen, Tabellen, Import und Export |
 | `start.sh` / `start.cmd` | Startet den lokalen Server auf Port 8765 |
+| `build-standalone.py` | Baut aus den obigen Dateien die Einzeldatei `Finanzblick.html` |
+| `Finanzblick.html` | Erzeugte Einzeldatei – nicht von Hand bearbeiten |
 
-Kein Build-Schritt, keine Abhängigkeiten. Änderungen an den Dateien wirken nach
-einem Neuladen der Seite.
+Keine Abhängigkeiten. Änderungen an den Quelldateien wirken nach einem Neuladen
+der Seite. Nur die Einzeldatei muss nach Änderungen neu gebaut werden, sonst
+bleibt sie auf einem alten Stand stehen:
+
+```sh
+python3 build-standalone.py
+```
 
 ## Verhältnis zur Buchhaltungs-App
 
