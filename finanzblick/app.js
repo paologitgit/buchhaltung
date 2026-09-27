@@ -320,17 +320,59 @@
     var info = {};
     Object.keys(byAccount).forEach(function (account) {
       var list = byAccount[account];
-      var fromBank = list.every(function (tx) {
+      var known = function (tx) {
         return typeof tx.balance === "number" && isFinite(tx.balance);
-      });
-      var running = 0;
-      list.forEach(function (tx) {
-        running += tx.amount;
-        tx.balanceRunning = fromBank ? tx.balance : running;
-      });
+      };
+      // Banken füllen die Saldospalte oft nur für bestimmte Buchungsarten.
+      // Eine Lücke darf die übrigen Werte nicht entwerten: der Saldo wird
+      // übernommen, wo er dasteht, und über Lücken hinweg mit den Beträgen
+      // fortgeschrieben.
+      var first = -1;
+      for (var i = 0; i < list.length; i++) {
+        if (known(list[i])) {
+          first = i;
+          break;
+        }
+      }
+
+      if (first === -1) {
+        var running = 0;
+        list.forEach(function (tx) {
+          running += tx.amount;
+          tx.balanceRunning = running;
+        });
+        info[account] = {
+          fromBank: false,
+          filled: 0,
+          last: list.length ? list[list.length - 1].balanceRunning : 0,
+        };
+        return;
+      }
+
+      var filled = 0;
+      var level = list[first].balance;
+      for (var f = first; f < list.length; f++) {
+        if (known(list[f])) {
+          level = list[f].balance;
+          filled++;
+        } else {
+          level = level + list[f].amount;
+        }
+        list[f].balanceRunning = level;
+      }
+
+      // Buchungen vor dem ersten bekannten Saldo rückwärts herleiten.
+      level = list[first].balance;
+      for (var b = first - 1; b >= 0; b--) {
+        level = level - list[b + 1].amount;
+        list[b].balanceRunning = known(list[b]) ? list[b].balance : level;
+      }
+
       info[account] = {
-        fromBank: fromBank,
-        last: list.length ? list[list.length - 1].balanceRunning : 0,
+        fromBank: true,
+        filled: filled,
+        total: list.length,
+        last: list[list.length - 1].balanceRunning,
       };
     });
     return info;

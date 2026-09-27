@@ -342,7 +342,13 @@
 
   /* --------------------------------------------------------- Zuordnung --- */
 
-  function scoreColumnsByName(header) {
+  /**
+   * Ordnet Rollen anhand der Spaltennamen zu. Spalten, die in den Daten
+   * durchgehend leer sind, kommen nicht in Frage: Exporte führen oft Spalten
+   * mit, die für die eigene Kontoart gar nicht befüllt werden, und eine leere
+   * "Belastung" darf die gefüllte "Betrag"-Spalte nicht verdrängen.
+   */
+  function scoreColumnsByName(header, stats) {
     var picks = {};
     var used = {};
 
@@ -351,6 +357,7 @@
         var best = { index: -1, score: 0 };
         header.forEach(function (name, index) {
           if (used[index]) return;
+          if (stats && stats[index] && stats[index].filled === 0) return;
           var score = matchesSynonym(normalizeKey(name), SYNONYMS[role]);
           if (score > best.score) best = { index: index, score: score };
         });
@@ -399,12 +406,56 @@
    * Ergänzt fehlende Zuordnungen anhand des Inhalts – nützlich bei Exporten mit
    * kryptischen oder fehlenden Spaltennamen.
    */
+  /**
+   * Findet die Saldospalte am Inhalt: ihr Zuwachs von Zeile zu Zeile
+   * entspricht dem Betrag der Buchung. Das ist ein eindeutiges Merkmal und
+   * funktioniert auch bei Spaltennamen, die in keiner Synonymliste stehen.
+   */
+  function findBalanceByContent(rows, mapping, stats) {
+    var taken = [mapping.date, mapping.amount, mapping.debit, mapping.credit];
+    var best = { index: -1, ratio: 0 };
+
+    stats.forEach(function (stat, index) {
+      if (taken.indexOf(index) > -1) return;
+      if (stat.numberRatio < 0.7 || stat.filled < 3) return;
+
+      var forward = 0;
+      var backward = 0;
+      var checks = 0;
+      var previous = null;
+      var since = 0; // Beträge seit dem letzten gefüllten Saldo
+
+      rows.forEach(function (row) {
+        var amount = rowAmount(row, mapping);
+        if (amount != null) since += amount;
+
+        var value = parseAmount(row[index]);
+        if (value == null) return; // Lücke: der nächste Sprung umfasst mehrere Beträge
+
+        if (previous != null) {
+          checks++;
+          // Je nach Sortierung der Datei wächst der Saldo mit oder gegen die Beträge.
+          if (Math.abs(value - previous - since) < 0.05) forward++;
+          if (Math.abs(previous - value - since) < 0.05) backward++;
+        }
+        previous = value;
+        since = 0;
+      });
+
+      if (checks < 3) return;
+      var ratio = Math.max(forward, backward) / checks;
+      if (ratio > 0.7 && ratio > best.ratio) best = { index: index, ratio: ratio };
+    });
+
+    return best.index > -1 ? best.index : null;
+  }
+
   function mapColumns(header, dataRows) {
     var sample = dataRows.slice(0, 200);
-    var mapping = scoreColumnsByName(header);
     var stats = header.map(function (_, index) {
       return columnStats(sample, index);
     });
+    var mapping = scoreColumnsByName(header, stats);
 
     if (mapping.date == null) {
       var bestDate = { index: -1, ratio: 0.6 };
@@ -428,6 +479,11 @@
         return b.negatives - a.negatives;
       });
       if (candidates.length) mapping.amount = candidates[0].index;
+    }
+
+    if (mapping.balance == null) {
+      var byContent = findBalanceByContent(sample, mapping, stats);
+      if (byContent != null) mapping.balance = byContent;
     }
 
     if (mapping.description == null) {
@@ -460,17 +516,52 @@
 
   /* ---------------------------------------------------------- Kontoname -- */
 
-  var IBAN_RE = /\b([A-Z]{2}\d{2}(?:[ ]?[A-Z0-9]{3,5}){3,7})\b/;
+  var IBAN_COUNTRY = /^(CH|LI|DE|AT|FR|IT|NL|BE|LU|ES|PT|GB|IE|DK|SE|NO|FI|PL|CZ|HU|SI|SK|HR|GR|EE|LV|LT|MT|CY|BG|RO|IS|MC|SM|AD)\d{2}[A-Z0-9]+$/;
 
   /**
-   * Der Kontoname entscheidet, welche Buchungen als Dubletten gelten. Zwei
-   * Exporte desselben Kontos müssen deshalb denselben Namen bekommen, sonst
-   * zählt eine überlappende Buchung doppelt.
+   * Prüft eine IBAN über ihre Prüfsumme (ISO 13616: die ersten vier Zeichen
+   * nach hinten, Buchstaben zu Zahlen, Rest bei Division durch 97 muss 1 sein).
    *
-   * Erste Wahl ist die IBAN aus der Datei – sie bleibt über alle Exporte
-   * gleich. Sonst der Dateiname ohne Zeitraumangaben, damit aus
-   * "Auszug_2024.csv" und "Auszug_2025.csv" ein Konto wird.
+   * Mustersuche allein genügt nicht: "SBB BILLETT" sieht nach zwei Buchstaben,
+   * zwei Ziffern und Blöcken aus und ging als IBAN durch. Die Prüfsumme macht
+   * die Erkennung eindeutig.
    */
+  function isValidIban(candidate) {
+    var value = String(candidate).replace(/\s/g, "").toUpperCase();
+    if (value.length < 15 || value.length > 34) return false;
+    if (!IBAN_COUNTRY.test(value)) return false;
+
+    var rearranged = value.slice(4) + value.slice(0, 4);
+    var remainder = 0;
+    for (var i = 0; i < rearranged.length; i++) {
+      var ch = rearranged.charAt(i);
+      var digits = ch >= "0" && ch <= "9" ? ch : String(ch.charCodeAt(0) - 55);
+      if (!/^\d+$/.test(digits)) return false;
+      // Stückweise rechnen, sonst überschreitet die Zahl den Wertebereich.
+      remainder = Number(String(remainder) + digits) % 97;
+    }
+    return remainder === 1;
+  }
+
+  /**
+   * Sucht eine IBAN im Text. Geschriebene IBAN stehen mal am Stück, mal in
+   * Vierergruppen, deshalb werden aufeinanderfolgende Wörter zusammengesetzt
+   * und jede Stufe geprüft.
+   */
+  function findIban(haystack) {
+    var tokens = haystack.split(/[^A-Z0-9]+/).filter(Boolean);
+    for (var i = 0; i < tokens.length; i++) {
+      if (!/^[A-Z]{2}\d{2}/.test(tokens[i])) continue;
+      var candidate = "";
+      for (var j = i; j < tokens.length && j < i + 9; j++) {
+        candidate += tokens[j];
+        if (candidate.length > 34) break;
+        if (isValidIban(candidate)) return candidate;
+      }
+    }
+    return null;
+  }
+
   function detectAccountName(rows, filename) {
     var haystack = rows
       .slice(0, 40)
@@ -480,9 +571,8 @@
       .join(" ")
       .toUpperCase();
 
-    var match = IBAN_RE.exec(haystack);
-    if (match) {
-      var iban = match[1].replace(/\s/g, "");
+    var iban = findIban(haystack);
+    if (iban) {
       // Nur die letzten vier Stellen anzeigen: identifiziert das Konto
       // eindeutig, ohne die vollständige IBAN in jeder Tabelle zu wiederholen.
       return "Konto ••" + iban.slice(-4);
@@ -490,14 +580,20 @@
 
     var cleaned = filename
       .replace(/\.[^.]+$/, "")
-      .replace(/\d{1,4}[._\-/]\d{1,2}[._\-/]\d{1,4}/g, " ")
+      // Trennzeichen zuerst: ein Unterstrich zählt als Wortzeichen, sonst
+      // greifen die Wortgrenzen der folgenden Muster nicht und aus
+      // "Auszug_2024" und "Auszug_2025" würden zwei Konten.
+      .replace(/[_\-.]+/g, " ")
+      .replace(/\b\d{1,4}[ /]\d{1,2}[ /]\d{1,4}\b/g, " ")
       .replace(/\b(19|20)\d{2}\b/g, " ")
       .replace(/\b(kontoauszug|auszug|export|umsaetze|umsatz|umsätze|buchungen|transactions|statement|bis|von|nr|q[1-4]|h[12])\b/gi, " ")
-      .replace(/[_\-]+/g, " ")
       .replace(/\s+/g, " ")
       .trim();
 
-    return cleaned || filename.replace(/\.[^.]+$/, "");
+    // Bleibt nichts Kennzeichnendes übrig (z.B. "Kontoauszug_2024.csv"), ist
+    // ein gemeinsamer Name das kleinere Übel: zwei Auszüge desselben Kontos
+    // gehören zusammen, und der Name lässt sich pro Datei überschreiben.
+    return cleaned || "Konto";
   }
 
   /* -------------------------------------------------------- Buchungen ---- */
@@ -518,7 +614,8 @@
       var credit = mapping.credit != null ? parseAmount(row[mapping.credit]) : null;
       if (debit) return -Math.abs(debit);
       if (credit) return Math.abs(credit);
-      return null;
+      // Manche Exporte führen Belastung und Gutschrift nur für bestimmte
+      // Buchungsarten und schreiben den Betrag sonst in eine eigene Spalte.
     }
     if (mapping.amount == null) return null;
     return parseAmount(row[mapping.amount]);
@@ -557,7 +654,10 @@
       var date = mapping.date != null ? parseDate(row[mapping.date]) : null;
       var amount = rowAmount(row, mapping);
       if (!date || amount == null || amount === 0) {
-        if (date || amount != null) skipped++;
+        // Auch Zeilen ohne jede brauchbare Angabe zählen: sonst meldet der
+        // Import "keine Buchungen erkannt", ohne zu sagen, wie viele Zeilen
+        // daran gescheitert sind.
+        skipped++;
         return;
       }
       if (meta.invertSign) amount = -amount;
