@@ -13,6 +13,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import (
     BaseDocTemplate,
     Frame,
+    PageBreak,
     PageTemplate,
     Paragraph,
     Spacer,
@@ -22,8 +23,9 @@ from reportlab.platypus import (
 
 from core.models import CompanySettings
 
-from .models import Account, FiscalYear, JournalLine
-from .reports import BILANZ_TYPES, _account_sums, _signed_balance, bilanz, erfolgsrechnung, kontoblatt
+from .grouped_reports import gewinnverwendung, grouped_bilanz, grouped_erfolgsrechnung, jahresrechnung_anhang
+from .models import Account, AccountGroup, FiscalYear, JournalLine
+from .reports import BILANZ_TYPES, _account_sums, _signed_balance, kontoblatt
 
 PAGE_WIDTH, PAGE_HEIGHT = A4
 MARGIN = 15 * mm
@@ -143,21 +145,24 @@ def _collect_kontoblatt_data(fiscal_year):
 
     numbered_belege = []
     number_by_group = {}
-    entry_beleg_nr = {}
+    beleg_by_number = {}
+    entry_beleg_links = {}
 
-    def _number_for(entry_id):
-        if entry_id in entry_beleg_nr:
-            return entry_beleg_nr[entry_id]
-        numbers = []
+    def _links_for(entry_id):
+        if entry_id in entry_beleg_links:
+            return entry_beleg_links[entry_id]
+        numbers = set()
         for beleg in belege_by_entry.get(entry_id, []):
             key = _beleg_group_key(beleg)
             if key not in number_by_group:
-                number_by_group[key] = len(numbered_belege) + 1
+                number = len(numbered_belege) + 1
+                number_by_group[key] = number
+                beleg_by_number[number] = beleg
                 numbered_belege.append(beleg)
-            numbers.append(number_by_group[key])
-        label = "/".join(str(n) for n in sorted(set(numbers))) if numbers else ""
-        entry_beleg_nr[entry_id] = label
-        return label
+            numbers.add(number_by_group[key])
+        links = [(n, beleg_by_number[n]) for n in sorted(numbers)]
+        entry_beleg_links[entry_id] = links
+        return links
 
     for section in sections:
         for row in section["entries"]:
@@ -174,15 +179,22 @@ def _collect_kontoblatt_data(fiscal_year):
                 row["gegenkonto"] = "div."
             else:
                 row["gegenkonto"] = ""
-            row["beleg_nr"] = _number_for(line.journal_entry_id)
+            row["beleg_links"] = _links_for(line.journal_entry_id)
 
     return sections, numbered_belege
 
 
-def kontoblaetter_pdf(fiscal_year):
-    """Kontoblätter aller bebuchten Konten als PDF. Gibt (BytesIO,
-    numbered_belege) zurück -- die Beleg-Liste für den Anhang-Modus."""
-    sections, numbered_belege = _collect_kontoblatt_data(fiscal_year)
+STYLE_LINK_CELL = ParagraphStyle(
+    "link_cell", fontName="Helvetica", fontSize=8, leading=10, textColor=colors.Color(0.1, 0.2, 0.6)
+)
+
+
+def kontoblaetter_pdf(fiscal_year, base_url):
+    """Kontoblätter aller bebuchten Konten als PDF. Belege werden nicht
+    eingebettet, sondern in der Beleg-Spalte als Link auf die Beleg-Ansicht
+    in der App gesetzt (base_url z.B. 'https://buchhaltung.example.com',
+    ohne Schrägstrich am Ende)."""
+    sections, _numbered_belege = _collect_kontoblatt_data(fiscal_year)
 
     buffer = io.BytesIO()
     doc = _build_doc(buffer)
@@ -194,13 +206,14 @@ def kontoblaetter_pdf(fiscal_year):
     story.append(Paragraph("Kontoblätter", STYLE_TITLE))
     story.append(
         Paragraph(
-            f"Geschäftsjahr {fiscal_year.start_date:%d.%m.%Y} – {fiscal_year.end_date:%d.%m.%Y}, Währung CHF",
+            f"Geschäftsjahr {fiscal_year.start_date:%d.%m.%Y} – {fiscal_year.end_date:%d.%m.%Y}, Währung CHF. "
+            "Die Beleg-Nummern sind anklickbare Links zur jeweiligen Beleg-Ansicht in der App.",
             STYLE_SUBTITLE,
         )
     )
     story.append(Spacer(1, 6))
 
-    col_widths = [22 * mm, 63 * mm, 20 * mm, 14 * mm, 20 * mm, 20 * mm, 21 * mm]
+    col_widths = [22 * mm, 60 * mm, 20 * mm, 17 * mm, 20 * mm, 20 * mm, 21 * mm]
     header = ["Datum", "Text", "Gegenkonto", "Beleg", "Soll", "Haben", "Saldo"]
 
     base_style = [
@@ -225,12 +238,19 @@ def kontoblaetter_pdf(fiscal_year):
             data.append(["", "Saldovortrag", "", "", "", "", _chf(section["opening_balance"])])
         for row in section["entries"]:
             line = row["line"]
+            beleg_cell = ""
+            if row["beleg_links"]:
+                url = base_url.rstrip("/")
+                links = [
+                    f'<a href="{url}/belege/{beleg.pk}/">{number}</a>' for number, beleg in row["beleg_links"]
+                ]
+                beleg_cell = Paragraph(", ".join(links), STYLE_LINK_CELL)
             data.append(
                 [
                     line.journal_entry.date.strftime("%d.%m.%Y"),
                     Paragraph(line.journal_entry.description, STYLE_CELL),
                     row["gegenkonto"],
-                    row["beleg_nr"],
+                    beleg_cell,
                     _chf(line.debit_amount) if line.debit_amount else "",
                     _chf(line.credit_amount) if line.credit_amount else "",
                     _chf(row["running_balance"]),
@@ -244,98 +264,7 @@ def kontoblaetter_pdf(fiscal_year):
 
     doc.build(story)
     buffer.seek(0)
-    return buffer, numbered_belege
-
-
-# ---------------------------------------------------------------------------
-# Belege anhängen
-
-
-def _beleg_stamp_overlay(text, page_width, page_height):
-    """Kleine 'Beleg N'-Markierung oben rechts als Overlay-PDF-Seite."""
-    from reportlab.pdfgen import canvas as rl_canvas
-
-    buf = io.BytesIO()
-    c = rl_canvas.Canvas(buf, pagesize=(page_width, page_height))
-    c.setFont("Helvetica-Bold", 11)
-    text_width = c.stringWidth(text, "Helvetica-Bold", 11)
-    x = page_width - text_width - 18
-    y = page_height - 24
-    c.setFillColor(colors.white)
-    c.rect(x - 6, y - 5, text_width + 12, 20, fill=1, stroke=0)
-    c.setFillColor(colors.black)
-    c.rect(x - 6, y - 5, text_width + 12, 20, fill=0, stroke=1)
-    c.drawString(x, y, text)
-    c.save()
-    buf.seek(0)
-    return buf
-
-
-def _image_beleg_to_pdf(beleg):
-    """Bild-Beleg als A4-PDF-Seite (eingepasst, Seitenverhältnis erhalten)."""
-    from reportlab.lib.utils import ImageReader
-    from reportlab.pdfgen import canvas as rl_canvas
-
-    from PIL import Image, ImageOps
-
-    image = Image.open(beleg.file.path)
-    image = ImageOps.exif_transpose(image)
-    if image.mode not in ("RGB", "L"):
-        image = image.convert("RGB")
-
-    buf = io.BytesIO()
-    c = rl_canvas.Canvas(buf, pagesize=A4)
-    max_w = PAGE_WIDTH - 2 * MARGIN
-    max_h = PAGE_HEIGHT - 2 * MARGIN
-    scale = min(max_w / image.width, max_h / image.height)
-    draw_w, draw_h = image.width * scale, image.height * scale
-    c.drawImage(
-        ImageReader(image),
-        (PAGE_WIDTH - draw_w) / 2,
-        PAGE_HEIGHT - MARGIN - draw_h,
-        width=draw_w,
-        height=draw_h,
-    )
-    c.save()
-    buf.seek(0)
-    return buf
-
-
-def append_belege(main_pdf, numbered_belege):
-    """Hängt die nummerierten Belege an das Kontoblätter-PDF an; jeder Beleg
-    erhält auf seiner ersten Seite einen 'Beleg N'-Stempel oben rechts."""
-    import logging
-
-    from pypdf import PdfReader, PdfWriter
-
-    logger = logging.getLogger(__name__)
-
-    writer = PdfWriter()
-    writer.append(PdfReader(main_pdf))
-
-    for number, beleg in enumerate(numbered_belege, start=1):
-        try:
-            if beleg.content_type == "application/pdf":
-                reader = PdfReader(beleg.file.path)
-            elif beleg.content_type.startswith("image/"):
-                reader = PdfReader(_image_beleg_to_pdf(beleg))
-            else:
-                continue
-            first = reader.pages[0]
-            overlay = PdfReader(
-                _beleg_stamp_overlay(
-                    f"Beleg {number}", float(first.mediabox.width), float(first.mediabox.height)
-                )
-            ).pages[0]
-            first.merge_page(overlay)
-            writer.append(reader)
-        except Exception:
-            logger.exception("Beleg %s konnte nicht angehängt werden", beleg.pk)
-
-    out = io.BytesIO()
-    writer.write(out)
-    out.seek(0)
-    return out
+    return buffer
 
 
 # ---------------------------------------------------------------------------
@@ -348,25 +277,54 @@ def _previous_fiscal_year(fiscal_year):
     )
 
 
-def _rows_by_account(rows):
-    return {row["account"].id: row["balance"] for row in rows}
+def _grouped_rows_table(rows, base, prev_base, is_passiv=False):
+    """Rendert eine Zeilenliste aus grouped_reports (code/label/value/
+    prev_value/depth/bold) als Tabelle mit Nummer-, Betrags- und %-Spalten.
+    Auf der Passivseite (Saldobilanz-Stil) wird jedem Betrag ein 'H'
+    angehängt (Haben-Seite), wie in der Treuhand-Vorlage üblich."""
+
+    def fmt(value):
+        text = _chf(value)
+        if is_passiv and value is not None and text:
+            text += "  H"
+        return text
+
+    col_widths = [18 * mm, 82 * mm, 25 * mm, 12 * mm, 25 * mm, 12 * mm]
+    header = ["Nummer", "Bezeichnung", "Berichtsjahr", "%", "Vorjahr", "%"]
+    style = [
+        ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.black),
+        ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    data = [header]
+    for row in rows:
+        indent = "&nbsp;&nbsp;&nbsp;&nbsp;" * row["depth"]
+        data.append(
+            [
+                row.get("code", "") or "",
+                Paragraph(indent + row["label"], STYLE_CELL),
+                fmt(row["value"]),
+                _pct(row["value"], base) if row["value"] is not None else "",
+                fmt(row["prev_value"]),
+                _pct(row["prev_value"], prev_base) if row["prev_value"] is not None else "",
+            ]
+        )
+        if row["bold"]:
+            i = len(data) - 1
+            style.append(("FONT", (0, i), (-1, i), "Helvetica-Bold", 8))
+    return Table(data, colWidths=col_widths, repeatRows=1, style=TableStyle(style))
 
 
-def jahresabschluss_pdf(fiscal_year):
-    """Bilanz per Stichtag und Erfolgsrechnung der Periode als PDF, mit
-    Vorjahresspalte (falls ein Vorjahres-Geschäftsjahr erfasst ist) und
-    %-Spalten (Bilanz: Anteil an Total Aktiven, ER: Anteil am Ertrag)."""
-    data = bilanz(fiscal_year)
-    er = erfolgsrechnung(fiscal_year)
-
+def saldobilanz_pdf(fiscal_year):
+    """Bilanz + Erfolgsrechnung im Stil der nummerierten Treuhand-
+    Saldobilanz: Kontengruppen mit Zwischentotalen (10/100/110/... bzw.
+    3/30/40/...), 'H'-Markierung auf der Passivseite, Vorjahresvergleich."""
     prev_fy = _previous_fiscal_year(fiscal_year)
-    prev_bilanz = bilanz(prev_fy) if prev_fy else None
-    prev_er = erfolgsrechnung(prev_fy) if prev_fy else None
-
-    prev_aktiva = _rows_by_account(prev_bilanz["aktiva_rows"]) if prev_bilanz else {}
-    prev_passiva = _rows_by_account(prev_bilanz["passiva_rows"]) if prev_bilanz else {}
-    prev_aufwand = _rows_by_account(prev_er["aufwand_rows"]) if prev_er else {}
-    prev_ertrag = _rows_by_account(prev_er["ertrag_rows"]) if prev_er else {}
+    b = grouped_bilanz(fiscal_year, AccountGroup.Tree.SALDOBILANZ, prev_fy)
+    er = grouped_erfolgsrechnung(fiscal_year, AccountGroup.Tree.SALDOBILANZ, prev_fy)
 
     buffer = io.BytesIO()
     doc = _build_doc(buffer)
@@ -376,85 +334,46 @@ def jahresabschluss_pdf(fiscal_year):
     if name:
         story.append(Paragraph(name, STYLE_SUBTITLE))
 
-    col_widths = [20 * mm, 80 * mm, 25 * mm, 12 * mm, 25 * mm, 12 * mm]
-    header = ["Nummer", "Bezeichnung", "Berichtsjahr", "%", "Vorjahr", "%"]
-
-    base_style = [
-        ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
-        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.black),
-        ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
-        ("TOPPADDING", (0, 0), (-1, -1), 2),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    aktiva_rows = b["aktiva_rows"] + [
+        {
+            "code": "",
+            "label": "Total Aktiven",
+            "value": b["total_aktiva"],
+            "prev_value": b["prev_total_aktiva"],
+            "depth": 0,
+            "bold": True,
+        }
+    ]
+    passiva_rows = b["passiva_rows"] + [
+        {
+            "code": "",
+            "label": "Total Passiven",
+            "value": b["total_passiva"],
+            "prev_value": b["prev_total_passiva"],
+            "depth": 0,
+            "bold": True,
+        }
     ]
 
-    def section_table(rows, prev_map, base, prev_base, total_label, total, prev_total, extra_rows=None):
-        table_data = [header]
-        style = list(base_style)
-        for row in rows:
-            account = row["account"]
-            prev_balance = prev_map.get(account.id)
-            table_data.append(
-                [
-                    account.code,
-                    Paragraph(account.name, STYLE_CELL),
-                    _chf(row["balance"]),
-                    _pct(row["balance"], base),
-                    _chf(prev_balance),
-                    _pct(prev_balance, prev_base),
-                ]
-            )
-        for extra in extra_rows or []:
-            table_data.append(extra)
-        table_data.append(
-            [
-                "",
-                total_label,
-                _chf(total),
-                _pct(total, base),
-                _chf(prev_total) if prev_total is not None else "",
-                _pct(prev_total, prev_base),
-            ]
-        )
-        style.append(("FONT", (0, len(table_data) - 1), (-1, len(table_data) - 1), "Helvetica-Bold", 8))
-        style.append(("LINEABOVE", (0, len(table_data) - 1), (-1, len(table_data) - 1), 0.5, colors.black))
-        return Table(table_data, colWidths=col_widths, repeatRows=1, style=TableStyle(style))
-
-    # --- Bilanz
     story.append(Paragraph(f"Bilanz per {fiscal_year.end_date:%d.%m.%Y}", STYLE_TITLE))
     story.append(Spacer(1, 6))
-
-    base = data["total_aktiva"]
-    prev_base = prev_bilanz["total_aktiva"] if prev_bilanz else None
-
-    story.append(Paragraph("Aktiven", STYLE_SECTION))
+    story.append(Paragraph("AKTIVEN", STYLE_SECTION))
+    story.append(_grouped_rows_table(aktiva_rows, b["total_aktiva"], b["prev_total_aktiva"]))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("PASSIVEN", STYLE_SECTION))
     story.append(
-        section_table(
-            data["aktiva_rows"], prev_aktiva, base, prev_base,
-            "Total Aktiven", data["total_aktiva"],
-            prev_bilanz["total_aktiva"] if prev_bilanz else None,
-        )
+        _grouped_rows_table(passiva_rows, b["total_aktiva"], b["prev_total_aktiva"], is_passiv=True)
     )
-
-    story.append(Paragraph("Passiven", STYLE_SECTION))
-    jahreserfolg_row = [
-        "",
-        "Jahresergebnis (Gewinn +/Verlust -)",
-        _chf(data["jahreserfolg"]),
-        _pct(data["jahreserfolg"], base),
-        _chf(prev_bilanz["jahreserfolg"]) if prev_bilanz else "",
-        _pct(prev_bilanz["jahreserfolg"], prev_base) if prev_bilanz else "",
-    ]
-    story.append(
-        section_table(
-            data["passiva_rows"], prev_passiva, base, prev_base,
-            "Total Passiven (inkl. Jahresergebnis)", data["total_passiva_mit_erfolg"],
-            prev_bilanz["total_passiva_mit_erfolg"] if prev_bilanz else None,
-            extra_rows=[jahreserfolg_row],
+    if not b["balanced"]:
+        story.append(Spacer(1, 4))
+        story.append(
+            Paragraph(
+                f"Achtung: Bilanz ist nicht ausgeglichen. Total Aktiven {_chf(b['total_aktiva'])} "
+                f"≠ Total Passiven {_chf(b['total_passiva'])}.",
+                STYLE_SUBTITLE,
+            )
         )
-    )
 
-    # --- Erfolgsrechnung
     story.append(Spacer(1, 14))
     story.append(
         Paragraph(
@@ -463,47 +382,243 @@ def jahresabschluss_pdf(fiscal_year):
         )
     )
     story.append(Spacer(1, 6))
-
-    er_base = er["total_ertrag"]
-    prev_er_base = prev_er["total_ertrag"] if prev_er else None
-
-    story.append(Paragraph("Ertrag", STYLE_SECTION))
-    story.append(
-        section_table(
-            er["ertrag_rows"], prev_ertrag, er_base, prev_er_base,
-            "Total Ertrag", er["total_ertrag"], prev_er["total_ertrag"] if prev_er else None,
-        )
-    )
-
-    story.append(Paragraph("Aufwand", STYLE_SECTION))
-    story.append(
-        section_table(
-            er["aufwand_rows"], prev_aufwand, er_base, prev_er_base,
-            "Total Aufwand", er["total_aufwand"], prev_er["total_aufwand"] if prev_er else None,
-        )
-    )
-
-    result_data = [
-        [
-            "",
-            "Jahresergebnis (Gewinn +/Verlust -)",
-            _chf(er["result"]),
-            _pct(er["result"], er_base),
-            _chf(prev_er["result"]) if prev_er else "",
-            _pct(prev_er["result"], prev_er_base) if prev_er else "",
-        ]
-    ]
-    result_style = TableStyle(
-        [
-            ("FONT", (0, 0), (-1, -1), "Helvetica-Bold", 8),
-            ("ALIGN", (2, 0), (-1, -1), "RIGHT"),
-            ("LINEABOVE", (0, 0), (-1, 0), 1, colors.black),
-            ("TOPPADDING", (0, 0), (-1, -1), 4),
-        ]
-    )
-    story.append(Spacer(1, 6))
-    story.append(Table(result_data, colWidths=col_widths, style=result_style))
+    story.append(_grouped_rows_table(er["rows"], er["ertrag_base"], er["prev_ertrag_base"]))
 
     doc.build(story)
     buffer.seek(0)
     return buffer
+
+
+# ---------------------------------------------------------------------------
+# Vollständige Jahresrechnung: Titelseite, Inhaltsverzeichnis, Bilanz/ER
+# (sprachlich gruppiert, EBITDA/EBIT/EBT-Kaskade), Anhang, Antrag
+
+
+STYLE_TOC_TITLE = ParagraphStyle("toc_title", fontName="Helvetica-Bold", fontSize=14, leading=18, spaceAfter=16)
+STYLE_TOC_ENTRY = ParagraphStyle("toc_entry", fontName="Helvetica", fontSize=11, leading=20)
+STYLE_COVER_COMPANY = ParagraphStyle(
+    "cover_company", fontName="Helvetica-Bold", fontSize=18, leading=22, alignment=1, spaceAfter=6
+)
+STYLE_COVER_TITLE = ParagraphStyle("cover_title", fontName="Helvetica", fontSize=16, leading=20, alignment=1)
+STYLE_COVER_YEAR = ParagraphStyle("cover_year", fontName="Helvetica-Bold", fontSize=22, leading=26, alignment=1)
+STYLE_COVER_SMALL = ParagraphStyle("cover_small", fontName="Helvetica", fontSize=9, leading=13, alignment=1)
+STYLE_ANHANG_TITLE = ParagraphStyle(
+    "anhang_title", fontName="Helvetica-Bold", fontSize=10, leading=13, spaceBefore=10, spaceAfter=3
+)
+
+
+def _treuhand_line():
+    settings_obj = CompanySettings.load()
+    parts = [p for p in [settings_obj.treuhand_name, settings_obj.treuhand_adresse] if p]
+    line = " | ".join(parts)
+    extra = [p for p in [settings_obj.treuhand_telefon, settings_obj.treuhand_website] if p]
+    if extra:
+        line = (line + " | " + " | ".join(extra)) if line else " | ".join(extra)
+    return line
+
+
+def _jahresrechnung_cover(fiscal_year):
+    settings_obj = CompanySettings.load()
+    story = [Spacer(1, 60 * mm)]
+    if settings_obj.firmenname:
+        story.append(Paragraph(settings_obj.firmenname, STYLE_COVER_COMPANY))
+    story.append(Paragraph("Jahresrechnung", STYLE_COVER_TITLE))
+    story.append(Spacer(1, 10 * mm))
+    story.append(Paragraph(str(fiscal_year.start_date.year), STYLE_COVER_YEAR))
+    story.append(Spacer(1, 60 * mm))
+    treuhand = _treuhand_line()
+    if treuhand:
+        story.append(Paragraph(treuhand, STYLE_COVER_SMALL))
+    if settings_obj.firmenname or settings_obj.firmenadresse:
+        story.append(Spacer(1, 4))
+        addr = "<br/>".join([p for p in [settings_obj.firmenname, settings_obj.firmenadresse] if p])
+        story.append(Paragraph(addr, STYLE_COVER_SMALL))
+    story.append(PageBreak())
+    return story
+
+
+def _jahresrechnung_toc(fiscal_year):
+    story = [Paragraph("Inhaltsverzeichnis", STYLE_TOC_TITLE)]
+    entries = [
+        f"Bilanz per {fiscal_year.end_date:%d.%m.%Y} mit Vorjahr",
+        f"Erfolgsrechnung {fiscal_year.start_date:%d.%m.%Y} – {fiscal_year.end_date:%d.%m.%Y} mit Vorjahr",
+        f"Anhang der Jahresrechnung {fiscal_year.start_date.year} mit Vorjahr",
+        f"Antrag über die Verwendung des Bilanzgewinnes {fiscal_year.start_date.year}",
+    ]
+    for entry in entries:
+        story.append(Paragraph(entry, STYLE_TOC_ENTRY))
+    story.append(PageBreak())
+    return story
+
+
+def _jahresrechnung_table(rows, base, prev_base):
+    col_widths = [95 * mm, 27 * mm, 13 * mm, 27 * mm, 13 * mm]
+    header = ["Bezeichnung", "Berichtsjahr", "%", "Vorjahr", "%"]
+    style = [
+        ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+        ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
+        ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.black),
+        ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+        ("TOPPADDING", (0, 0), (-1, -1), 2),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+    ]
+    data = [header]
+    for row in rows:
+        indent = "&nbsp;&nbsp;&nbsp;&nbsp;" * row["depth"]
+        data.append(
+            [
+                Paragraph(indent + row["label"], STYLE_CELL),
+                _chf(row["value"]),
+                _pct(row["value"], base) if row["value"] is not None else "",
+                _chf(row["prev_value"]),
+                _pct(row["prev_value"], prev_base) if row["prev_value"] is not None else "",
+            ]
+        )
+        if row["bold"]:
+            i = len(data) - 1
+            style.append(("FONT", (0, i), (-1, i), "Helvetica-Bold", 8))
+    return Table(data, colWidths=col_widths, repeatRows=1, style=TableStyle(style))
+
+
+def _jahresrechnung_bilanz_section(fiscal_year, prev_fy):
+    b = grouped_bilanz(fiscal_year, AccountGroup.Tree.JAHRESRECHNUNG, prev_fy)
+    aktiva_rows = b["aktiva_rows"] + [
+        {"label": "Total Aktiven", "value": b["total_aktiva"], "prev_value": b["prev_total_aktiva"], "depth": 0, "bold": True}
+    ]
+    passiva_rows = b["passiva_rows"] + [
+        {"label": "Total Passiven", "value": b["total_passiva"], "prev_value": b["prev_total_passiva"], "depth": 0, "bold": True}
+    ]
+    story = [Paragraph(f"Bilanz per {fiscal_year.end_date:%d.%m.%Y}", STYLE_TITLE), Spacer(1, 6)]
+    story.append(Paragraph("Aktiven", STYLE_SECTION))
+    story.append(_jahresrechnung_table(aktiva_rows, b["total_aktiva"], b["prev_total_aktiva"]))
+    story.append(Spacer(1, 10))
+    story.append(Paragraph("Passiven", STYLE_SECTION))
+    story.append(_jahresrechnung_table(passiva_rows, b["total_aktiva"], b["prev_total_aktiva"]))
+    if not b["balanced"]:
+        story.append(Spacer(1, 4))
+        story.append(
+            Paragraph(
+                f"Achtung: Bilanz ist nicht ausgeglichen. Total Aktiven {_chf(b['total_aktiva'])} "
+                f"≠ Total Passiven {_chf(b['total_passiva'])}.",
+                STYLE_SUBTITLE,
+            )
+        )
+    story.append(PageBreak())
+    return story, b
+
+
+def _jahresrechnung_er_section(fiscal_year, prev_fy):
+    er = grouped_erfolgsrechnung(fiscal_year, AccountGroup.Tree.JAHRESRECHNUNG, prev_fy)
+    story = [
+        Paragraph(
+            f"Erfolgsrechnung {fiscal_year.start_date:%d.%m.%Y} – {fiscal_year.end_date:%d.%m.%Y}", STYLE_TITLE
+        ),
+        Spacer(1, 6),
+        _jahresrechnung_table(er["rows"], er["ertrag_base"], er["prev_ertrag_base"]),
+        PageBreak(),
+    ]
+    return story, er
+
+
+def _jahresrechnung_anhang_section(fiscal_year, prev_fy):
+    notes = jahresrechnung_anhang(fiscal_year, prev_fy)
+    story = [
+        Paragraph(f"Anhang der Jahresrechnung {fiscal_year.start_date.year}", STYLE_TITLE),
+        Spacer(1, 4),
+        Paragraph(
+            "1  Angaben über die in der Jahresrechnung angewandten Grundsätze", STYLE_ANHANG_TITLE
+        ),
+        Paragraph(
+            "Die vorliegende Jahresrechnung wurde gemäss den Vorschriften des Schweizerischen Gesetzes, "
+            "insbesondere der Artikel über die kaufmännische Buchführung und Rechnungslegung des "
+            "Obligationenrechts (Art. 957 bis 962) erstellt.",
+            STYLE_CELL,
+        ),
+    ]
+    if notes:
+        story.append(
+            Paragraph("2  Angaben und Erläuterungen zu Positionen der Bilanz und Erfolgsrechnung", STYLE_ANHANG_TITLE)
+        )
+        for note in notes:
+            story.append(Paragraph(note["title"], STYLE_ANHANG_TITLE))
+            col_widths = [95 * mm, 27 * mm, 27 * mm]
+            data = [["", "Berichtsjahr", "Vorjahr"]]
+            style = [
+                ("FONT", (0, 0), (-1, -1), "Helvetica", 8),
+                ("FONT", (0, 0), (-1, 0), "Helvetica-Bold", 8),
+                ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+                ("TOPPADDING", (0, 0), (-1, -1), 2),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+            ]
+            for row in note["rows"]:
+                data.append([row["label"], _chf(row["value"]), _chf(row["prev_value"])])
+            data.append(["Total", _chf(note["total"]), _chf(note["prev_total"])])
+            style.append(("FONT", (0, len(data) - 1), (-1, len(data) - 1), "Helvetica-Bold", 8))
+            style.append(("LINEABOVE", (0, len(data) - 1), (-1, len(data) - 1), 0.5, colors.black))
+            story.append(Table(data, colWidths=col_widths, style=TableStyle(style)))
+            story.append(Spacer(1, 6))
+    story.append(PageBreak())
+    return story
+
+
+def _jahresrechnung_antrag_section(fiscal_year):
+    gw = gewinnverwendung(fiscal_year)
+    year = fiscal_year.start_date.year
+    story = [
+        Paragraph(f"Antrag über die Verwendung des Bilanzgewinnes {year}", STYLE_TITLE),
+        Spacer(1, 6),
+    ]
+    col_widths = [110 * mm, 34 * mm]
+    style = TableStyle(
+        [
+            ("FONT", (0, 0), (-1, -1), "Helvetica", 9),
+            ("ALIGN", (1, 0), (-1, -1), "RIGHT"),
+            ("TOPPADDING", (0, 0), (-1, -1), 3),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ]
+    )
+    data1 = [
+        ["Gewinnvortrag", _chf(gw["gewinnvortrag"])],
+        ["Jahresverlust/-gewinn", _chf(gw["jahresergebnis"])],
+        ["Total zur Verfügung der Gesellschafterversammlung", _chf(gw["total"])],
+    ]
+    story.append(Table(data1, colWidths=col_widths, style=style))
+    story.append(Spacer(1, 10))
+    story.append(
+        Paragraph(
+            "Die Geschäftsführung beantragt der Gesellschafterversammlung folgende Gewinnverwendung:",
+            STYLE_CELL,
+        )
+    )
+    story.append(Spacer(1, 6))
+    data2 = [
+        ["Zuweisung an die gesetzliche Gewinnreserve", _chf(gw["zuweisung"])],
+        ["Vortrag auf neue Rechnung", _chf(gw["vortrag"])],
+    ]
+    story.append(Table(data2, colWidths=col_widths, style=style))
+    return story
+
+
+def jahresrechnung_pdf(fiscal_year):
+    """Vollständige Jahresrechnung: Titelseite, Inhaltsverzeichnis, Bilanz
+    und Erfolgsrechnung (sprachlich gruppiert, EBITDA/EBIT/EBT-Kaskade),
+    Anhang (automatische Aufschlüsselung von Gruppen mit mehreren Konten)
+    und Antrag über die Verwendung des Bilanzgewinnes."""
+    prev_fy = _previous_fiscal_year(fiscal_year)
+
+    buffer = io.BytesIO()
+    doc = _build_doc(buffer)
+    story = []
+    story += _jahresrechnung_cover(fiscal_year)
+    story += _jahresrechnung_toc(fiscal_year)
+    bilanz_story, _ = _jahresrechnung_bilanz_section(fiscal_year, prev_fy)
+    story += bilanz_story
+    er_story, _ = _jahresrechnung_er_section(fiscal_year, prev_fy)
+    story += er_story
+    story += _jahresrechnung_anhang_section(fiscal_year, prev_fy)
+    story += _jahresrechnung_antrag_section(fiscal_year)
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+

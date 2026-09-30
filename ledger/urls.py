@@ -10,6 +10,11 @@ urlpatterns = [
     path("geschaeftsjahre/", views.fiscal_year_list, name="fiscal_year_list"),
     path("geschaeftsjahre/neu/", views.fiscal_year_create, name="fiscal_year_create"),
     path("geschaeftsjahre/<int:pk>/abschliessen/", views.fiscal_year_close, name="fiscal_year_close"),
+    path(
+        "geschaeftsjahre/<int:pk>/gewinnverwendung/",
+        views.fiscal_year_gewinnverwendung,
+        name="fiscal_year_gewinnverwendung",
+    ),
     path("berichte/", views.berichte, name="berichte"),
     path("berichte/bilanz/", views.bericht_bilanz, name="bericht_bilanz"),
     path("berichte/erfolgsrechnung/", views.bericht_erfolgsrechnung, name="bericht_erfolgsrechnung"),

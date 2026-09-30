@@ -13,8 +13,11 @@
       <td>{{ fy }}</td>
       <td>{% if fy.is_closed %}abgeschlossen{% else %}offen{% endif %}</td>
       <td>
-        {% if user.has_write_access and not fy.is_closed %}
-        <a href="{% url 'fiscal_year_close' fy.pk %}">abschliessen</a>
+        {% if user.has_write_access %}
+        <a href="{% url 'fiscal_year_gewinnverwendung' fy.pk %}">Gewinnverwendung</a>
+        {% if not fy.is_closed %}
+        &middot; <a href="{% url 'fiscal_year_close' fy.pk %}">abschliessen</a>
+        {% endif %}
         {% endif %}
       </td>
     </tr>

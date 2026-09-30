@@ -9,9 +9,9 @@ from core.decorators import owner_required
 
 from .analytics import build_income_expense_chart, monthly_income_expense, top_expense_accounts
 from .export import export_journal_csv, export_journal_xlsx, export_journal_zip
-from .forms import FiscalYearForm
+from .forms import FiscalYearForm, GewinnverwendungForm
 from .models import Account, FiscalYear, JournalEntry
-from .pdf_reports import append_belege, jahresabschluss_pdf, kontoblaetter_pdf
+from .pdf_reports import jahresrechnung_pdf, kontoblaetter_pdf, saldobilanz_pdf
 from .reports import bilanz, erfolgsrechnung, kontoblatt, saldobilanz
 
 
@@ -113,6 +113,23 @@ def fiscal_year_close(request, pk):
 
 
 @login_required
+@owner_required
+def fiscal_year_gewinnverwendung(request, pk):
+    fiscal_year = get_object_or_404(FiscalYear, pk=pk)
+    if request.method == "POST":
+        form = GewinnverwendungForm(request.POST, instance=fiscal_year)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Gewinnverwendung wurde gespeichert.")
+            return redirect("fiscal_year_list")
+    else:
+        form = GewinnverwendungForm(instance=fiscal_year)
+    return render(
+        request, "ledger/fiscal_year_gewinnverwendung.html", {"form": form, "fiscal_year": fiscal_year}
+    )
+
+
+@login_required
 def berichte(request):
     fiscal_years, fiscal_year = _resolve_fiscal_year(request)
     return render(
@@ -187,15 +204,15 @@ def bericht_pdf(request, report):
 
     year_label = fiscal_year.start_date.strftime("%Y")
     if report == "kontoblaetter":
-        buffer, _belege = kontoblaetter_pdf(fiscal_year)
+        base_url = request.build_absolute_uri("/").rstrip("/")
+        buffer = kontoblaetter_pdf(fiscal_year, base_url)
         filename = f"Kontoblaetter_{year_label}.pdf"
-    elif report == "kontoblaetter-mit-belegen":
-        buffer, numbered_belege = kontoblaetter_pdf(fiscal_year)
-        buffer = append_belege(buffer, numbered_belege)
-        filename = f"Kontoblaetter_{year_label}_mit_Belegen.pdf"
-    elif report == "jahresabschluss":
-        buffer = jahresabschluss_pdf(fiscal_year)
-        filename = f"Bilanz_Erfolgsrechnung_{year_label}.pdf"
+    elif report == "bilanz-gruppiert":
+        buffer = saldobilanz_pdf(fiscal_year)
+        filename = f"Saldobilanz_{year_label}.pdf"
+    elif report == "jahresrechnung":
+        buffer = jahresrechnung_pdf(fiscal_year)
+        filename = f"Jahresrechnung_{year_label}.pdf"
     else:
         return HttpResponseBadRequest("Unbekannter Bericht.")
 

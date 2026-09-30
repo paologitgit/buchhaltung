@@ -12,6 +12,26 @@ class CompanySettings(models.Model):
         verbose_name="Firmenname",
         help_text='Erscheint im Kopf der PDF-Berichte, z.B. "Muster GmbH, Chur".',
     )
+    firmenadresse = models.CharField(
+        max_length=200,
+        blank=True,
+        default="",
+        db_default="",
+        verbose_name="Firmenadresse",
+        help_text="Für die Titelseite der Jahresrechnung, z.B. \"Musterstrasse 1\\n7000 Chur\".",
+    )
+    treuhand_name = models.CharField(
+        max_length=120, blank=True, default="", db_default="", verbose_name="Treuhänder Name"
+    )
+    treuhand_adresse = models.CharField(
+        max_length=200, blank=True, default="", db_default="", verbose_name="Treuhänder Adresse"
+    )
+    treuhand_telefon = models.CharField(
+        max_length=50, blank=True, default="", db_default="", verbose_name="Treuhänder Telefon"
+    )
+    treuhand_website = models.CharField(
+        max_length=100, blank=True, default="", db_default="", verbose_name="Treuhänder Website"
+    )
     mwst_pflichtig = models.BooleanField(
         default=True,
         verbose_name="MWST-pflichtig",
