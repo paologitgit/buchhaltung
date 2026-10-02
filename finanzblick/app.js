@@ -593,12 +593,13 @@
     if (!hasData) return;
 
     var transactions = filteredTransactions();
+    // Der Kontostand zählt alle Buchungen des Zeitraums, auch die gerade
+    // ausgeblendeten: er hängt an allen Buchungen davor, nicht an der Auswahl.
+    var balance = balanceSeries(filteredTransactions({ balanceScope: true }));
+
     renderSummary(transactions);
-    renderKpis(transactions);
-    // Der Saldoverlauf zeigt den echten Kontostand und darf deshalb nicht auf
-    // Kategorie, Suche oder Zuordnung reagieren – sonst wäre er die Summe
-    // einer Teilmenge und nicht mehr der Kontostand.
-    renderCharts(transactions, filteredTransactions({ balanceScope: true }));
+    renderKpis(transactions, balance);
+    renderCharts(transactions, balance);
     renderRecurring(transactions);
     renderTopPayees(transactions);
     renderTransactions(transactions);
@@ -622,7 +623,7 @@
     $("filter-summary").textContent = parts.join(" · ");
   }
 
-  function renderKpis(transactions) {
+  function renderKpis(transactions, balance) {
     var income = 0;
     var expense = 0;
     transactions.forEach(function (tx) {
@@ -643,6 +644,12 @@
       net >= 0
         ? "Überschuss über " + activeMonths + " Monate mit Buchungen"
         : "Fehlbetrag über " + activeMonths + " Monate mit Buchungen";
+
+    var lastPoint = balance.points.length ? balance.points[balance.points.length - 1] : null;
+    $("kpi-balance").textContent = lastPoint ? money(lastPoint.y, 0) : "–";
+    $("kpi-balance-meta").textContent = lastPoint
+      ? (balance.absolute ? "laut Bank, Stand " : "aufsummiert, Stand ") + formatDate(lastPoint.x)
+      : "";
 
     $("kpi-in").textContent = money(income, 0);
     $("kpi-in-meta").textContent = money(income / activeMonths, 0) + " pro Monat";
@@ -667,11 +674,10 @@
     $("kpi-rate-meta").textContent = income > 0 ? "Anteil der Einnahmen, der übrig bleibt" : "Keine Einnahmen im Zeitraum";
   }
 
-  function renderCharts(transactions, balanceTransactions) {
+  function renderCharts(transactions, balance) {
     var t = FB.charts.theme();
 
     /* Saldoverlauf */
-    var balance = balanceSeries(balanceTransactions || transactions);
     $("chart-balance-subtitle").textContent =
       (balance.absolute
         ? "Kontostand laut Saldospalte der Bank"
@@ -1092,6 +1098,21 @@
     var accountInput = document.createElement("input");
     accountInput.type = "text";
     accountInput.value = file.account;
+    // Bestehende Konten vorschlagen: zwei Exporte gehören nur dann zusammen,
+    // wenn ihr Kontoname übereinstimmt.
+    var listId = "accounts-" + file.id;
+    var datalist = document.createElement("datalist");
+    datalist.id = listId;
+    var seen = {};
+    state.files.forEach(function (other) {
+      if (seen[other.account]) return;
+      seen[other.account] = true;
+      var option = document.createElement("option");
+      option.value = other.account;
+      datalist.appendChild(option);
+    });
+    accountInput.setAttribute("list", listId);
+    accountField.appendChild(datalist);
     accountInput.addEventListener("change", function () {
       remapFile(file, { account: accountInput.value.trim() || file.filename });
     });

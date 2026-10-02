@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- Finanzblick – erzeugt von build-standalone.py aus den Dateien des
-     Ordners finanzblick/ (Quellstand: ecad286 (mit ungespeicherten Änderungen)).
+     Ordners finanzblick/ (Quellstand: 19ca8d0 (mit ungespeicherten Änderungen)).
      Diese Datei nicht von Hand bearbeiten, sondern die Quelldateien
      ändern und das Skript erneut ausführen. -->
 
@@ -514,6 +514,11 @@ input:focus-visible, select:focus-visible {
       <p class="kpi__meta" id="kpi-net-meta"></p>
     </div>
     <div class="card kpi">
+      <p class="kpi__label">Kontostand</p>
+      <p class="kpi__value" id="kpi-balance">–</p>
+      <p class="kpi__meta" id="kpi-balance-meta"></p>
+    </div>
+    <div class="card kpi">
       <p class="kpi__label">Einnahmen</p>
       <p class="kpi__value" id="kpi-in">–</p>
       <p class="kpi__meta" id="kpi-in-meta"></p>
@@ -837,8 +842,16 @@ input:focus-visible, select:focus-visible {
       "beschreibung", "buchungstext", "text", "verwendungszweck", "details",
       "description", "mitteilung", "buchungsinformationen", "buchungsinformation",
       "zahlungsempfaenger", "beguenstigter", "empfaenger", "auftraggeber",
-      "namezahlungsbeteiligter", "gegenpartei", "referenz", "avistext", "zweck",
+      "namezahlungsbeteiligter", "gegenpartei", "avistext", "zweck",
       "payee", "narrative", "memo", "name",
+    ],
+    /* Die Belegnummer der Bank. Sie gehört nicht in den Buchungstext, sondern
+     * ist der verlässlichste Weg, dieselbe Buchung in zwei Exporten wieder-
+     * zuerkennen. */
+    reference: [
+      "transaktionsnr", "transaktionsnummer", "transaktion", "referenz",
+      "referenznr", "reference", "belegnr", "belegnummer", "buchungsnr",
+      "auftragsnr", "endtoendid", "transactionid", "id",
     ],
     balance: ["saldo", "kontostand", "balance", "saldochf", "laufendersaldo"],
     currency: ["waehrung", "currency", "wkz", "waehrungcode", "iso"],
@@ -1023,7 +1036,7 @@ input:focus-visible, select:focus-visible {
     var picks = {};
     var used = {};
 
-    ["date", "amount", "debit", "credit", "balance", "currency", "description"].forEach(
+    ["date", "amount", "debit", "credit", "balance", "currency", "reference", "description"].forEach(
       function (role) {
         var best = { index: -1, score: 0 };
         header.forEach(function (name, index) {
@@ -1152,6 +1165,28 @@ input:focus-visible, select:focus-visible {
       if (candidates.length) mapping.amount = candidates[0].index;
     }
 
+    // Exporte führen teils beides: ein Paar Belastung/Gutschrift für die
+    // Buchungen und eine Betragsspalte für die Detailzeilen von
+    // Sammelbuchungen (UBS: "Einzelbetrag"). Beides zusammen zu lesen zählt
+    // die Sammelbuchung doppelt, deshalb gewinnt die Darstellung, die mehr
+    // Zeilen abdeckt – und nur sie wird gelesen.
+    if ((mapping.debit != null || mapping.credit != null) && mapping.amount != null) {
+      var pairRows = 0;
+      var amountRows = 0;
+      sample.forEach(function (row) {
+        var debit = mapping.debit != null ? parseAmount(row[mapping.debit]) : null;
+        var credit = mapping.credit != null ? parseAmount(row[mapping.credit]) : null;
+        if (debit || credit) pairRows++;
+        if (parseAmount(row[mapping.amount])) amountRows++;
+      });
+      if (pairRows >= amountRows) {
+        delete mapping.amount;
+      } else {
+        delete mapping.debit;
+        delete mapping.credit;
+      }
+    }
+
     if (mapping.balance == null) {
       var byContent = findBalanceByContent(sample, mapping, stats);
       if (byContent != null) mapping.balance = byContent;
@@ -1174,6 +1209,7 @@ input:focus-visible, select:focus-visible {
         if (index === mapping.description || index === mapping.date) return;
         if (index === mapping.amount || index === mapping.debit) return;
         if (index === mapping.credit || index === mapping.balance) return;
+        if (index === mapping.reference) return;
         var score = s.textRatio * s.avgLength;
         if (score > bestSecond.score && s.avgLength > 6) {
           bestSecond = { index: index, score: score };
@@ -1285,14 +1321,23 @@ input:focus-visible, select:focus-visible {
       var credit = mapping.credit != null ? parseAmount(row[mapping.credit]) : null;
       if (debit) return -Math.abs(debit);
       if (credit) return Math.abs(credit);
-      // Manche Exporte führen Belastung und Gutschrift nur für bestimmte
-      // Buchungsarten und schreiben den Betrag sonst in eine eigene Spalte.
+      // Keine Belastung und keine Gutschrift: das ist keine eigene Buchung,
+      // sondern die Detailzeile einer Sammelbuchung. Sie zu übernehmen würde
+      // den Betrag der Sammelbuchung ein zweites Mal zählen.
+      return null;
     }
     if (mapping.amount == null) return null;
     return parseAmount(row[mapping.amount]);
   }
 
+  /**
+   * Schlüssel für die Dublettenerkennung. Gibt es eine Belegnummer, trägt sie
+   * den Schlüssel: sie bleibt über Exporte hinweg gleich, während der
+   * Buchungstext je nach Spaltenzuordnung abweichen kann. Sonst identifiziert
+   * die Buchung sich über Datum, Betrag und Text.
+   */
   function transactionKey(tx) {
+    if (tx.reference) return "ref|" + tx.reference.toLowerCase();
     return [tx.dateKey, tx.amount.toFixed(2), tx.description.toLowerCase().replace(/\s+/g, " ")].join("|");
   }
 
@@ -1339,6 +1384,7 @@ input:focus-visible, select:focus-visible {
         month: date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0"),
         amount: amount,
         description: buildDescription(row, mapping) || "(ohne Text)",
+        reference: mapping.reference != null ? String(row[mapping.reference] || "").trim() : "",
         balance: mapping.balance != null ? parseAmount(row[mapping.balance]) : null,
         currency:
           (mapping.currency != null && String(row[mapping.currency] || "").trim()) ||
@@ -3122,12 +3168,13 @@ input:focus-visible, select:focus-visible {
     if (!hasData) return;
 
     var transactions = filteredTransactions();
+    // Der Kontostand zählt alle Buchungen des Zeitraums, auch die gerade
+    // ausgeblendeten: er hängt an allen Buchungen davor, nicht an der Auswahl.
+    var balance = balanceSeries(filteredTransactions({ balanceScope: true }));
+
     renderSummary(transactions);
-    renderKpis(transactions);
-    // Der Saldoverlauf zeigt den echten Kontostand und darf deshalb nicht auf
-    // Kategorie, Suche oder Zuordnung reagieren – sonst wäre er die Summe
-    // einer Teilmenge und nicht mehr der Kontostand.
-    renderCharts(transactions, filteredTransactions({ balanceScope: true }));
+    renderKpis(transactions, balance);
+    renderCharts(transactions, balance);
     renderRecurring(transactions);
     renderTopPayees(transactions);
     renderTransactions(transactions);
@@ -3151,7 +3198,7 @@ input:focus-visible, select:focus-visible {
     $("filter-summary").textContent = parts.join(" · ");
   }
 
-  function renderKpis(transactions) {
+  function renderKpis(transactions, balance) {
     var income = 0;
     var expense = 0;
     transactions.forEach(function (tx) {
@@ -3172,6 +3219,12 @@ input:focus-visible, select:focus-visible {
       net >= 0
         ? "Überschuss über " + activeMonths + " Monate mit Buchungen"
         : "Fehlbetrag über " + activeMonths + " Monate mit Buchungen";
+
+    var lastPoint = balance.points.length ? balance.points[balance.points.length - 1] : null;
+    $("kpi-balance").textContent = lastPoint ? money(lastPoint.y, 0) : "–";
+    $("kpi-balance-meta").textContent = lastPoint
+      ? (balance.absolute ? "laut Bank, Stand " : "aufsummiert, Stand ") + formatDate(lastPoint.x)
+      : "";
 
     $("kpi-in").textContent = money(income, 0);
     $("kpi-in-meta").textContent = money(income / activeMonths, 0) + " pro Monat";
@@ -3196,11 +3249,10 @@ input:focus-visible, select:focus-visible {
     $("kpi-rate-meta").textContent = income > 0 ? "Anteil der Einnahmen, der übrig bleibt" : "Keine Einnahmen im Zeitraum";
   }
 
-  function renderCharts(transactions, balanceTransactions) {
+  function renderCharts(transactions, balance) {
     var t = FB.charts.theme();
 
     /* Saldoverlauf */
-    var balance = balanceSeries(balanceTransactions || transactions);
     $("chart-balance-subtitle").textContent =
       (balance.absolute
         ? "Kontostand laut Saldospalte der Bank"
@@ -3621,6 +3673,21 @@ input:focus-visible, select:focus-visible {
     var accountInput = document.createElement("input");
     accountInput.type = "text";
     accountInput.value = file.account;
+    // Bestehende Konten vorschlagen: zwei Exporte gehören nur dann zusammen,
+    // wenn ihr Kontoname übereinstimmt.
+    var listId = "accounts-" + file.id;
+    var datalist = document.createElement("datalist");
+    datalist.id = listId;
+    var seen = {};
+    state.files.forEach(function (other) {
+      if (seen[other.account]) return;
+      seen[other.account] = true;
+      var option = document.createElement("option");
+      option.value = other.account;
+      datalist.appendChild(option);
+    });
+    accountInput.setAttribute("list", listId);
+    accountField.appendChild(datalist);
     accountInput.addEventListener("change", function () {
       remapFile(file, { account: accountInput.value.trim() || file.filename });
     });

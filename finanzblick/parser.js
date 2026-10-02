@@ -166,8 +166,16 @@
       "beschreibung", "buchungstext", "text", "verwendungszweck", "details",
       "description", "mitteilung", "buchungsinformationen", "buchungsinformation",
       "zahlungsempfaenger", "beguenstigter", "empfaenger", "auftraggeber",
-      "namezahlungsbeteiligter", "gegenpartei", "referenz", "avistext", "zweck",
+      "namezahlungsbeteiligter", "gegenpartei", "avistext", "zweck",
       "payee", "narrative", "memo", "name",
+    ],
+    /* Die Belegnummer der Bank. Sie gehört nicht in den Buchungstext, sondern
+     * ist der verlässlichste Weg, dieselbe Buchung in zwei Exporten wieder-
+     * zuerkennen. */
+    reference: [
+      "transaktionsnr", "transaktionsnummer", "transaktion", "referenz",
+      "referenznr", "reference", "belegnr", "belegnummer", "buchungsnr",
+      "auftragsnr", "endtoendid", "transactionid", "id",
     ],
     balance: ["saldo", "kontostand", "balance", "saldochf", "laufendersaldo"],
     currency: ["waehrung", "currency", "wkz", "waehrungcode", "iso"],
@@ -352,7 +360,7 @@
     var picks = {};
     var used = {};
 
-    ["date", "amount", "debit", "credit", "balance", "currency", "description"].forEach(
+    ["date", "amount", "debit", "credit", "balance", "currency", "reference", "description"].forEach(
       function (role) {
         var best = { index: -1, score: 0 };
         header.forEach(function (name, index) {
@@ -481,6 +489,28 @@
       if (candidates.length) mapping.amount = candidates[0].index;
     }
 
+    // Exporte führen teils beides: ein Paar Belastung/Gutschrift für die
+    // Buchungen und eine Betragsspalte für die Detailzeilen von
+    // Sammelbuchungen (UBS: "Einzelbetrag"). Beides zusammen zu lesen zählt
+    // die Sammelbuchung doppelt, deshalb gewinnt die Darstellung, die mehr
+    // Zeilen abdeckt – und nur sie wird gelesen.
+    if ((mapping.debit != null || mapping.credit != null) && mapping.amount != null) {
+      var pairRows = 0;
+      var amountRows = 0;
+      sample.forEach(function (row) {
+        var debit = mapping.debit != null ? parseAmount(row[mapping.debit]) : null;
+        var credit = mapping.credit != null ? parseAmount(row[mapping.credit]) : null;
+        if (debit || credit) pairRows++;
+        if (parseAmount(row[mapping.amount])) amountRows++;
+      });
+      if (pairRows >= amountRows) {
+        delete mapping.amount;
+      } else {
+        delete mapping.debit;
+        delete mapping.credit;
+      }
+    }
+
     if (mapping.balance == null) {
       var byContent = findBalanceByContent(sample, mapping, stats);
       if (byContent != null) mapping.balance = byContent;
@@ -503,6 +533,7 @@
         if (index === mapping.description || index === mapping.date) return;
         if (index === mapping.amount || index === mapping.debit) return;
         if (index === mapping.credit || index === mapping.balance) return;
+        if (index === mapping.reference) return;
         var score = s.textRatio * s.avgLength;
         if (score > bestSecond.score && s.avgLength > 6) {
           bestSecond = { index: index, score: score };
@@ -614,14 +645,23 @@
       var credit = mapping.credit != null ? parseAmount(row[mapping.credit]) : null;
       if (debit) return -Math.abs(debit);
       if (credit) return Math.abs(credit);
-      // Manche Exporte führen Belastung und Gutschrift nur für bestimmte
-      // Buchungsarten und schreiben den Betrag sonst in eine eigene Spalte.
+      // Keine Belastung und keine Gutschrift: das ist keine eigene Buchung,
+      // sondern die Detailzeile einer Sammelbuchung. Sie zu übernehmen würde
+      // den Betrag der Sammelbuchung ein zweites Mal zählen.
+      return null;
     }
     if (mapping.amount == null) return null;
     return parseAmount(row[mapping.amount]);
   }
 
+  /**
+   * Schlüssel für die Dublettenerkennung. Gibt es eine Belegnummer, trägt sie
+   * den Schlüssel: sie bleibt über Exporte hinweg gleich, während der
+   * Buchungstext je nach Spaltenzuordnung abweichen kann. Sonst identifiziert
+   * die Buchung sich über Datum, Betrag und Text.
+   */
   function transactionKey(tx) {
+    if (tx.reference) return "ref|" + tx.reference.toLowerCase();
     return [tx.dateKey, tx.amount.toFixed(2), tx.description.toLowerCase().replace(/\s+/g, " ")].join("|");
   }
 
@@ -668,6 +708,7 @@
         month: date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0"),
         amount: amount,
         description: buildDescription(row, mapping) || "(ohne Text)",
+        reference: mapping.reference != null ? String(row[mapping.reference] || "").trim() : "",
         balance: mapping.balance != null ? parseAmount(row[mapping.balance]) : null,
         currency:
           (mapping.currency != null && String(row[mapping.currency] || "").trim()) ||
