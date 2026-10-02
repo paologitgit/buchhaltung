@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <!-- Finanzblick – erzeugt von build-standalone.py aus den Dateien des
-     Ordners finanzblick/ (Quellstand: 19ca8d0 (mit ungespeicherten Änderungen)).
+     Ordners finanzblick/ (Quellstand: 17f6ee7 (mit ungespeicherten Änderungen)).
      Diese Datei nicht von Hand bearbeiten, sondern die Quelldateien
      ändern und das Skript erneut ausführen. -->
 
@@ -549,7 +549,10 @@ input:focus-visible, select:focus-visible {
           <h2 class="card__title" id="chart-balance-title">Saldoverlauf</h2>
           <p class="card__subtitle" id="chart-balance-subtitle">Kontostand über die Zeit</p>
         </div>
-        <button type="button" class="button button--ghost button--small" data-table-toggle="table-balance">Tabelle</button>
+        <div class="card__head-actions">
+          <button type="button" class="button button--ghost button--small" id="chart-balance-reset" hidden>Zeitraum zurücksetzen</button>
+          <button type="button" class="button button--ghost button--small" data-table-toggle="table-balance">Tabelle</button>
+        </div>
       </div>
       <div class="chart" id="chart-balance"></div>
       <div class="table-wrap" id="table-balance" hidden></div>
@@ -1363,6 +1366,7 @@ input:focus-visible, select:focus-visible {
 
     var transactions = [];
     var skipped = 0;
+    var opening = null;
 
     rows.forEach(function (row) {
       if (!row.some(function (cell) { return cell !== ""; })) return;
@@ -1370,6 +1374,16 @@ input:focus-visible, select:focus-visible {
       var date = mapping.date != null ? parseDate(row[mapping.date]) : null;
       var amount = rowAmount(row, mapping);
       if (!date || amount == null || amount === 0) {
+        // Eine Zeile mit Datum und Saldo, aber ohne Betrag, ist keine Buchung,
+        // sondern der Anfangssaldo des Auszugs. Er verankert den ganzen
+        // Verlauf und wird deshalb festgehalten statt verworfen.
+        var level = mapping.balance != null ? parseAmount(row[mapping.balance]) : null;
+        if (date && level != null) {
+          if (!opening || date < opening.date) {
+            opening = { date: date, dateKey: toDateKey(date), value: level };
+          }
+          return;
+        }
         // Auch Zeilen ohne jede brauchbare Angabe zählen: sonst meldet der
         // Import "keine Buchungen erkannt", ohne zu sagen, wie viele Zeilen
         // daran gescheitert sind.
@@ -1399,7 +1413,7 @@ input:focus-visible, select:focus-visible {
     transactions.sort(function (a, b) {
       return a.date - b.date;
     });
-    return { transactions: transactions, skipped: skipped };
+    return { transactions: transactions, skipped: skipped, openingBalance: opening };
   }
 
   /**
@@ -1459,6 +1473,7 @@ input:focus-visible, select:focus-visible {
       invertSign: meta.invertSign,
       transactions: built.transactions,
       skipped: built.skipped,
+      openingBalance: built.openingBalance,
       rawRows: dataRows,
     };
   }
@@ -2222,6 +2237,13 @@ input:focus-visible, select:focus-visible {
       var last = points[points.length - 1];
       svg.appendChild(el("circle", { cx: xAt(points.length - 1), cy: yAt(last.y), r: 5, fill: opts.color || t.pos, stroke: t.surface, "stroke-width": 2 }));
 
+      // Auswahlfläche liegt unter den Marken, damit sie die Linie nicht verdeckt.
+      var selection = el("rect", {
+        y: pad.top, height: plotH, fill: opts.color || t.pos,
+        "fill-opacity": 0.12, opacity: 0, x: 0, width: 0,
+      });
+      svg.insertBefore(selection, svg.firstChild);
+
       var crosshair = el("line", { y1: pad.top, y2: pad.top + plotH, stroke: t.axis, "stroke-width": 1, opacity: 0 });
       var marker = el("circle", { r: 5, fill: opts.color || t.pos, stroke: t.surface, "stroke-width": 2, opacity: 0 });
       svg.appendChild(crosshair);
@@ -2230,13 +2252,58 @@ input:focus-visible, select:focus-visible {
       var overlay = el("rect", { x: 0, y: 0, width: width, height: height, fill: "transparent" });
       svg.appendChild(overlay);
 
+      function indexAt(event) {
+        var rect = svg.getBoundingClientRect();
+        var px = (event.clientX - rect.left) * (width / rect.width);
+        var ratio = (px - pad.left) / (plotW || 1);
+        var index = Math.round(ratio * (points.length - 1));
+        return Math.min(Math.max(index, 0), points.length - 1);
+      }
+
+      /* Bereichsauswahl: ziehen spannt einen Zeitraum auf. Erst ab einer
+       * kleinen Mindeststrecke, damit ein Klick keinen Bereich auswählt. */
+      var dragFrom = null;
+
+      function drawSelection(a, b) {
+        var x1 = Math.min(xAt(a), xAt(b));
+        var x2 = Math.max(xAt(a), xAt(b));
+        selection.setAttribute("x", x1);
+        selection.setAttribute("width", Math.max(x2 - x1, 0));
+        selection.setAttribute("opacity", 1);
+      }
+
+      if (opts.onSelectRange) {
+        overlay.style.cursor = "crosshair";
+
+        overlay.addEventListener("pointerdown", function (event) {
+          dragFrom = { index: indexAt(event), x: event.clientX };
+          overlay.setPointerCapture(event.pointerId);
+        });
+
+        overlay.addEventListener("pointerup", function (event) {
+          if (!dragFrom) return;
+          var from = dragFrom;
+          dragFrom = null;
+          selection.setAttribute("opacity", 0);
+          if (Math.abs(event.clientX - from.x) < 8) return; // nur ein Klick
+
+          var a = from.index;
+          var b = indexAt(event);
+          if (a === b) return;
+          opts.onSelectRange(points[Math.min(a, b)].x, points[Math.max(a, b)].x);
+        });
+
+        overlay.addEventListener("pointercancel", function () {
+          dragFrom = null;
+          selection.setAttribute("opacity", 0);
+        });
+      }
+
       function moveTo(event) {
         var rect = svg.getBoundingClientRect();
         var scale = width / rect.width;
-        var px = (event.clientX - rect.left) * scale;
-        var ratio = (px - pad.left) / (plotW || 1);
-        var index = Math.round(ratio * (points.length - 1));
-        index = Math.min(Math.max(index, 0), points.length - 1);
+        var index = indexAt(event);
+        if (dragFrom) drawSelection(dragFrom.index, index);
 
         var point = points[index];
         var cx = xAt(index);
@@ -2690,6 +2757,9 @@ input:focus-visible, select:focus-visible {
         return {
           filename: file.filename,
           account: file.account,
+          openingBalance: file.openingBalance
+            ? { d: file.openingBalance.dateKey, v: file.openingBalance.value }
+            : null,
           transactions: file.transactions.map(function (tx) {
             return {
               d: tx.dateKey,
@@ -2725,10 +2795,20 @@ input:focus-visible, select:focus-visible {
         tx.key = [tx.dateKey, tx.amount.toFixed(2), tx.description.toLowerCase().replace(/\s+/g, " ")].join("|");
         return tx;
       });
+      var opening = null;
+      if (file.openingBalance) {
+        var op = file.openingBalance.d.split("-");
+        opening = {
+          date: new Date(+op[0], +op[1] - 1, +op[2]),
+          dateKey: file.openingBalance.d,
+          value: file.openingBalance.v,
+        };
+      }
       state.files.push({
         id: state.nextFileId++,
         filename: file.filename,
         account: file.account,
+        openingBalance: opening,
         transactions: transactions,
         restored: true,
         rowCount: transactions.length,
@@ -2820,6 +2900,7 @@ input:focus-visible, select:focus-visible {
     file.invertSign = meta.invertSign;
     file.transactions = built.transactions;
     file.skipped = built.skipped;
+    file.openingBalance = built.openingBalance;
     rebuild();
   }
 
@@ -2862,7 +2943,14 @@ input:focus-visible, select:focus-visible {
     });
     state.ruleHits = hits;
 
-    state.balanceInfo = computeBalances(all);
+    var openings = {};
+    state.files.forEach(function (file) {
+      var opening = file.openingBalance;
+      if (!opening) return;
+      var current = openings[file.account];
+      if (!current || opening.date < current.date) openings[file.account] = opening;
+    });
+    state.balanceInfo = computeBalances(all, openings);
     state.transactions = all;
     state.currency = mostCommonCurrency(all);
     state.duplicates = duplicates;
@@ -2885,7 +2973,7 @@ input:focus-visible, select:focus-visible {
    * gefilterte Auswahl: der Kontostand einer Buchung hängt an allen Buchungen
    * davor, nicht daran, was gerade angezeigt wird.
    */
-  function computeBalances(transactions) {
+  function computeBalances(transactions, openings) {
     var byAccount = {};
     transactions.forEach(function (tx) {
       if (!byAccount[tx.account]) byAccount[tx.account] = [];
@@ -2911,15 +2999,19 @@ input:focus-visible, select:focus-visible {
       }
 
       if (first === -1) {
-        var running = 0;
+        // Kein Saldo an den Buchungen: der Anfangssaldo des Auszugs genügt
+        // als Anker, dann stimmen auch die absoluten Werte.
+        var opening = openings && openings[account];
+        var running = opening ? opening.value : 0;
         list.forEach(function (tx) {
           running += tx.amount;
           tx.balanceRunning = running;
         });
         info[account] = {
-          fromBank: false,
+          fromBank: !!opening,
+          fromOpening: !!opening,
           filled: 0,
-          last: list.length ? list[list.length - 1].balanceRunning : 0,
+          last: list.length ? list[list.length - 1].balanceRunning : running,
         };
         return;
       }
@@ -2985,6 +3077,11 @@ input:focus-visible, select:focus-visible {
 
   /* ------------------------------------------------------------ Filter --- */
 
+  function parseInputDate(value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+    return match ? new Date(+match[1], +match[2] - 1, +match[3]) : null;
+  }
+
   function rangeBounds() {
     var filters = state.filters;
     if (!state.transactions.length) return { from: null, to: null };
@@ -2994,8 +3091,10 @@ input:focus-visible, select:focus-visible {
     var to = null;
 
     if (filters.range === "custom") {
-      from = filters.from ? new Date(filters.from) : null;
-      to = filters.to ? new Date(filters.to) : null;
+      // "2026-01-02" als UTC-Mitternacht gelesen liegt in unserer Zeitzone
+      // nach dem Tagesbeginn – Buchungen des Starttages fielen dann heraus.
+      from = parseInputDate(filters.from);
+      to = parseInputDate(filters.to);
     } else if (filters.range === "ytd") {
       from = new Date(last.getFullYear(), 0, 1);
     } else if (filters.range === "12m" || filters.range === "6m" || filters.range === "3m") {
@@ -3103,6 +3202,17 @@ input:focus-visible, select:focus-visible {
       byDay[tx.dateKey].value = total;
     });
 
+    // Beschriftung passend zum sichtbaren Zeitraum: beim Hineinzoomen auf
+    // wenige Wochen sagt "Jan. 26" nichts mehr, da braucht es den Tag.
+    var spanDays =
+      (transactions[transactions.length - 1].date - transactions[0].date) / 86400000;
+    var labelFormat =
+      spanDays <= 120
+        ? { day: "2-digit", month: "short" }
+        : spanDays <= 1100
+        ? { month: "short", year: "2-digit" }
+        : { year: "numeric" };
+
     var points = order.map(function (key) {
       var day = byDay[key];
       return {
@@ -3110,7 +3220,7 @@ input:focus-visible, select:focus-visible {
         y: day.value,
         change: day.change,
         count: day.count,
-        label: day.date.toLocaleDateString("de-CH", { month: "short", year: "2-digit" }),
+        label: day.date.toLocaleDateString("de-CH", labelFormat),
         tooltipTitle: formatDate(day.date),
       };
     });
@@ -3249,6 +3359,21 @@ input:focus-visible, select:focus-visible {
     $("kpi-rate-meta").textContent = income > 0 ? "Anteil der Einnahmen, der übrig bleibt" : "Keine Einnahmen im Zeitraum";
   }
 
+  /** Übernimmt einen im Saldoverlauf aufgezogenen Bereich als Zeitfilter. */
+  function applyDateRange(from, to) {
+    state.filters.range = "custom";
+    state.filters.from = FB.parse.toDateKey(from);
+    state.filters.to = FB.parse.toDateKey(to);
+    state.limit = 200;
+
+    $("filter-range").value = "custom";
+    $("filter-from").value = state.filters.from;
+    $("filter-to").value = state.filters.to;
+    $("field-from").hidden = false;
+    $("field-to").hidden = false;
+    render();
+  }
+
   function renderCharts(transactions, balance) {
     var t = FB.charts.theme();
 
@@ -3257,12 +3382,15 @@ input:focus-visible, select:focus-visible {
       (balance.absolute
         ? "Kontostand laut Saldospalte der Bank"
         : "Aufsummiert ab Beginn der Daten – der Verlauf stimmt, die absolute Höhe nicht") +
-      " · nur Zeitraum und Konto wirken hier";
+      " · nur Zeitraum und Konto wirken hier · zum Hineinzoomen im Diagramm ziehen";
+
+    $("chart-balance-reset").hidden = state.filters.range === "all";
 
     FB.charts.line($("chart-balance"), {
       points: balance.points,
       color: t.pos,
       height: 260,
+      onSelectRange: applyDateRange,
       ariaLabel: "Saldoverlauf",
       formatAxis: moneyShort,
       tooltipRows: function (point) {
@@ -4110,6 +4238,18 @@ input:focus-visible, select:focus-visible {
       $("filter-assignment").value = "";
       $("filter-search").value = "";
       $("filter-exclude-transfers").checked = false;
+      $("field-from").hidden = true;
+      $("field-to").hidden = true;
+      render();
+    });
+
+    $("chart-balance-reset").addEventListener("click", function () {
+      state.filters.range = "all";
+      state.filters.from = null;
+      state.filters.to = null;
+      $("filter-range").value = "all";
+      $("filter-from").value = "";
+      $("filter-to").value = "";
       $("field-from").hidden = true;
       $("field-to").hidden = true;
       render();

@@ -58,11 +58,24 @@ ohne Mauszeiger erreichbar.
 
 ## Kontostand
 
-Die Buchungstabelle und der CSV-Export führen zu jeder Buchung den Kontostand
-**nach** ihrer Verbuchung. Enthält die CSV eine Saldospalte, wird diese
-unverändert übernommen; fehlt sie, wird ab Beginn der Daten aufsummiert – dann
-stimmt der Verlauf, nicht aber die absolute Höhe. Was gerade gilt, steht über
-der Tabelle und in der Spaltenüberschrift.
+Die Kennzahl **Kontostand**, die Buchungstabelle und der CSV-Export führen zu
+jeder Buchung den Kontostand **nach** ihrer Verbuchung. Enthält die CSV eine
+Saldospalte, wird diese unverändert übernommen – auch wenn die Bank sie nur für
+einen Teil der Buchungen füllt: über Lücken hinweg wird mit den Beträgen
+fortgeschrieben. Was gerade gilt, steht über der Tabelle und in der
+Spaltenüberschrift.
+
+**Beim Export den Anfangssaldo mitgeben.** Viele Banken bieten das an (bei UBS
+im Exportdialog). Eine Zeile mit Datum und Saldo, aber ohne Betrag, erkennt
+Finanzblick als Anfangssaldo und verankert den ganzen Verlauf daran. Ohne sie
+und ohne Saldospalte bleibt nur das Aufsummieren ab Beginn der Daten – der
+Verlauf stimmt dann, die absolute Höhe nicht.
+
+**Zeitraum im Diagramm wählen.** Im Saldoverlauf lässt sich mit gedrückter
+Maustaste ein Bereich aufziehen; die Auswahl wird zum Zeitfilter für alle
+Ansichten, und die Achsen des Verlaufs skalieren sich auf den gewählten
+Ausschnitt. **Zeitraum zurücksetzen** über dem Diagramm führt zurück zur
+Gesamtansicht. Ein einfacher Klick wählt nichts aus.
 
 Gerechnet wird immer über alle Buchungen eines Kontos, nie über die gefilterte
 Auswahl: der Kontostand hängt an allen Buchungen davor, nicht daran, was gerade

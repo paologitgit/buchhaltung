@@ -687,6 +687,7 @@
 
     var transactions = [];
     var skipped = 0;
+    var opening = null;
 
     rows.forEach(function (row) {
       if (!row.some(function (cell) { return cell !== ""; })) return;
@@ -694,6 +695,16 @@
       var date = mapping.date != null ? parseDate(row[mapping.date]) : null;
       var amount = rowAmount(row, mapping);
       if (!date || amount == null || amount === 0) {
+        // Eine Zeile mit Datum und Saldo, aber ohne Betrag, ist keine Buchung,
+        // sondern der Anfangssaldo des Auszugs. Er verankert den ganzen
+        // Verlauf und wird deshalb festgehalten statt verworfen.
+        var level = mapping.balance != null ? parseAmount(row[mapping.balance]) : null;
+        if (date && level != null) {
+          if (!opening || date < opening.date) {
+            opening = { date: date, dateKey: toDateKey(date), value: level };
+          }
+          return;
+        }
         // Auch Zeilen ohne jede brauchbare Angabe zählen: sonst meldet der
         // Import "keine Buchungen erkannt", ohne zu sagen, wie viele Zeilen
         // daran gescheitert sind.
@@ -723,7 +734,7 @@
     transactions.sort(function (a, b) {
       return a.date - b.date;
     });
-    return { transactions: transactions, skipped: skipped };
+    return { transactions: transactions, skipped: skipped, openingBalance: opening };
   }
 
   /**
@@ -783,6 +794,7 @@
       invertSign: meta.invertSign,
       transactions: built.transactions,
       skipped: built.skipped,
+      openingBalance: built.openingBalance,
       rawRows: dataRows,
     };
   }

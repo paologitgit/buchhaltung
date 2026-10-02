@@ -140,7 +140,10 @@
           <h2 class="card__title" id="chart-balance-title">Saldoverlauf</h2>
           <p class="card__subtitle" id="chart-balance-subtitle">Kontostand über die Zeit</p>
         </div>
-        <button type="button" class="button button--ghost button--small" data-table-toggle="table-balance">Tabelle</button>
+        <div class="card__head-actions">
+          <button type="button" class="button button--ghost button--small" id="chart-balance-reset" hidden>Zeitraum zurücksetzen</button>
+          <button type="button" class="button button--ghost button--small" data-table-toggle="table-balance">Tabelle</button>
+        </div>
       </div>
       <div class="chart" id="chart-balance"></div>
       <div class="table-wrap" id="table-balance" hidden></div>

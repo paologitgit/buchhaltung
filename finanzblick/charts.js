@@ -283,6 +283,13 @@
       var last = points[points.length - 1];
       svg.appendChild(el("circle", { cx: xAt(points.length - 1), cy: yAt(last.y), r: 5, fill: opts.color || t.pos, stroke: t.surface, "stroke-width": 2 }));
 
+      // Auswahlfläche liegt unter den Marken, damit sie die Linie nicht verdeckt.
+      var selection = el("rect", {
+        y: pad.top, height: plotH, fill: opts.color || t.pos,
+        "fill-opacity": 0.12, opacity: 0, x: 0, width: 0,
+      });
+      svg.insertBefore(selection, svg.firstChild);
+
       var crosshair = el("line", { y1: pad.top, y2: pad.top + plotH, stroke: t.axis, "stroke-width": 1, opacity: 0 });
       var marker = el("circle", { r: 5, fill: opts.color || t.pos, stroke: t.surface, "stroke-width": 2, opacity: 0 });
       svg.appendChild(crosshair);
@@ -291,13 +298,58 @@
       var overlay = el("rect", { x: 0, y: 0, width: width, height: height, fill: "transparent" });
       svg.appendChild(overlay);
 
+      function indexAt(event) {
+        var rect = svg.getBoundingClientRect();
+        var px = (event.clientX - rect.left) * (width / rect.width);
+        var ratio = (px - pad.left) / (plotW || 1);
+        var index = Math.round(ratio * (points.length - 1));
+        return Math.min(Math.max(index, 0), points.length - 1);
+      }
+
+      /* Bereichsauswahl: ziehen spannt einen Zeitraum auf. Erst ab einer
+       * kleinen Mindeststrecke, damit ein Klick keinen Bereich auswählt. */
+      var dragFrom = null;
+
+      function drawSelection(a, b) {
+        var x1 = Math.min(xAt(a), xAt(b));
+        var x2 = Math.max(xAt(a), xAt(b));
+        selection.setAttribute("x", x1);
+        selection.setAttribute("width", Math.max(x2 - x1, 0));
+        selection.setAttribute("opacity", 1);
+      }
+
+      if (opts.onSelectRange) {
+        overlay.style.cursor = "crosshair";
+
+        overlay.addEventListener("pointerdown", function (event) {
+          dragFrom = { index: indexAt(event), x: event.clientX };
+          overlay.setPointerCapture(event.pointerId);
+        });
+
+        overlay.addEventListener("pointerup", function (event) {
+          if (!dragFrom) return;
+          var from = dragFrom;
+          dragFrom = null;
+          selection.setAttribute("opacity", 0);
+          if (Math.abs(event.clientX - from.x) < 8) return; // nur ein Klick
+
+          var a = from.index;
+          var b = indexAt(event);
+          if (a === b) return;
+          opts.onSelectRange(points[Math.min(a, b)].x, points[Math.max(a, b)].x);
+        });
+
+        overlay.addEventListener("pointercancel", function () {
+          dragFrom = null;
+          selection.setAttribute("opacity", 0);
+        });
+      }
+
       function moveTo(event) {
         var rect = svg.getBoundingClientRect();
         var scale = width / rect.width;
-        var px = (event.clientX - rect.left) * scale;
-        var ratio = (px - pad.left) / (plotW || 1);
-        var index = Math.round(ratio * (points.length - 1));
-        index = Math.min(Math.max(index, 0), points.length - 1);
+        var index = indexAt(event);
+        if (dragFrom) drawSelection(dragFrom.index, index);
 
         var point = points[index];
         var cx = xAt(index);

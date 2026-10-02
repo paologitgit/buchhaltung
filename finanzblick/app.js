@@ -115,6 +115,9 @@
         return {
           filename: file.filename,
           account: file.account,
+          openingBalance: file.openingBalance
+            ? { d: file.openingBalance.dateKey, v: file.openingBalance.value }
+            : null,
           transactions: file.transactions.map(function (tx) {
             return {
               d: tx.dateKey,
@@ -150,10 +153,20 @@
         tx.key = [tx.dateKey, tx.amount.toFixed(2), tx.description.toLowerCase().replace(/\s+/g, " ")].join("|");
         return tx;
       });
+      var opening = null;
+      if (file.openingBalance) {
+        var op = file.openingBalance.d.split("-");
+        opening = {
+          date: new Date(+op[0], +op[1] - 1, +op[2]),
+          dateKey: file.openingBalance.d,
+          value: file.openingBalance.v,
+        };
+      }
       state.files.push({
         id: state.nextFileId++,
         filename: file.filename,
         account: file.account,
+        openingBalance: opening,
         transactions: transactions,
         restored: true,
         rowCount: transactions.length,
@@ -245,6 +258,7 @@
     file.invertSign = meta.invertSign;
     file.transactions = built.transactions;
     file.skipped = built.skipped;
+    file.openingBalance = built.openingBalance;
     rebuild();
   }
 
@@ -287,7 +301,14 @@
     });
     state.ruleHits = hits;
 
-    state.balanceInfo = computeBalances(all);
+    var openings = {};
+    state.files.forEach(function (file) {
+      var opening = file.openingBalance;
+      if (!opening) return;
+      var current = openings[file.account];
+      if (!current || opening.date < current.date) openings[file.account] = opening;
+    });
+    state.balanceInfo = computeBalances(all, openings);
     state.transactions = all;
     state.currency = mostCommonCurrency(all);
     state.duplicates = duplicates;
@@ -310,7 +331,7 @@
    * gefilterte Auswahl: der Kontostand einer Buchung hängt an allen Buchungen
    * davor, nicht daran, was gerade angezeigt wird.
    */
-  function computeBalances(transactions) {
+  function computeBalances(transactions, openings) {
     var byAccount = {};
     transactions.forEach(function (tx) {
       if (!byAccount[tx.account]) byAccount[tx.account] = [];
@@ -336,15 +357,19 @@
       }
 
       if (first === -1) {
-        var running = 0;
+        // Kein Saldo an den Buchungen: der Anfangssaldo des Auszugs genügt
+        // als Anker, dann stimmen auch die absoluten Werte.
+        var opening = openings && openings[account];
+        var running = opening ? opening.value : 0;
         list.forEach(function (tx) {
           running += tx.amount;
           tx.balanceRunning = running;
         });
         info[account] = {
-          fromBank: false,
+          fromBank: !!opening,
+          fromOpening: !!opening,
           filled: 0,
-          last: list.length ? list[list.length - 1].balanceRunning : 0,
+          last: list.length ? list[list.length - 1].balanceRunning : running,
         };
         return;
       }
@@ -410,6 +435,11 @@
 
   /* ------------------------------------------------------------ Filter --- */
 
+  function parseInputDate(value) {
+    var match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
+    return match ? new Date(+match[1], +match[2] - 1, +match[3]) : null;
+  }
+
   function rangeBounds() {
     var filters = state.filters;
     if (!state.transactions.length) return { from: null, to: null };
@@ -419,8 +449,10 @@
     var to = null;
 
     if (filters.range === "custom") {
-      from = filters.from ? new Date(filters.from) : null;
-      to = filters.to ? new Date(filters.to) : null;
+      // "2026-01-02" als UTC-Mitternacht gelesen liegt in unserer Zeitzone
+      // nach dem Tagesbeginn – Buchungen des Starttages fielen dann heraus.
+      from = parseInputDate(filters.from);
+      to = parseInputDate(filters.to);
     } else if (filters.range === "ytd") {
       from = new Date(last.getFullYear(), 0, 1);
     } else if (filters.range === "12m" || filters.range === "6m" || filters.range === "3m") {
@@ -528,6 +560,17 @@
       byDay[tx.dateKey].value = total;
     });
 
+    // Beschriftung passend zum sichtbaren Zeitraum: beim Hineinzoomen auf
+    // wenige Wochen sagt "Jan. 26" nichts mehr, da braucht es den Tag.
+    var spanDays =
+      (transactions[transactions.length - 1].date - transactions[0].date) / 86400000;
+    var labelFormat =
+      spanDays <= 120
+        ? { day: "2-digit", month: "short" }
+        : spanDays <= 1100
+        ? { month: "short", year: "2-digit" }
+        : { year: "numeric" };
+
     var points = order.map(function (key) {
       var day = byDay[key];
       return {
@@ -535,7 +578,7 @@
         y: day.value,
         change: day.change,
         count: day.count,
-        label: day.date.toLocaleDateString("de-CH", { month: "short", year: "2-digit" }),
+        label: day.date.toLocaleDateString("de-CH", labelFormat),
         tooltipTitle: formatDate(day.date),
       };
     });
@@ -674,6 +717,21 @@
     $("kpi-rate-meta").textContent = income > 0 ? "Anteil der Einnahmen, der übrig bleibt" : "Keine Einnahmen im Zeitraum";
   }
 
+  /** Übernimmt einen im Saldoverlauf aufgezogenen Bereich als Zeitfilter. */
+  function applyDateRange(from, to) {
+    state.filters.range = "custom";
+    state.filters.from = FB.parse.toDateKey(from);
+    state.filters.to = FB.parse.toDateKey(to);
+    state.limit = 200;
+
+    $("filter-range").value = "custom";
+    $("filter-from").value = state.filters.from;
+    $("filter-to").value = state.filters.to;
+    $("field-from").hidden = false;
+    $("field-to").hidden = false;
+    render();
+  }
+
   function renderCharts(transactions, balance) {
     var t = FB.charts.theme();
 
@@ -682,12 +740,15 @@
       (balance.absolute
         ? "Kontostand laut Saldospalte der Bank"
         : "Aufsummiert ab Beginn der Daten – der Verlauf stimmt, die absolute Höhe nicht") +
-      " · nur Zeitraum und Konto wirken hier";
+      " · nur Zeitraum und Konto wirken hier · zum Hineinzoomen im Diagramm ziehen";
+
+    $("chart-balance-reset").hidden = state.filters.range === "all";
 
     FB.charts.line($("chart-balance"), {
       points: balance.points,
       color: t.pos,
       height: 260,
+      onSelectRange: applyDateRange,
       ariaLabel: "Saldoverlauf",
       formatAxis: moneyShort,
       tooltipRows: function (point) {
@@ -1535,6 +1596,18 @@
       $("filter-assignment").value = "";
       $("filter-search").value = "";
       $("filter-exclude-transfers").checked = false;
+      $("field-from").hidden = true;
+      $("field-to").hidden = true;
+      render();
+    });
+
+    $("chart-balance-reset").addEventListener("click", function () {
+      state.filters.range = "all";
+      state.filters.from = null;
+      state.filters.to = null;
+      $("filter-range").value = "all";
+      $("filter-from").value = "";
+      $("filter-to").value = "";
       $("field-from").hidden = true;
       $("field-to").hidden = true;
       render();
